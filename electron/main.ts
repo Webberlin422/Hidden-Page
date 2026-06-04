@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, Tray, dialog, ipcMain, nativeImage, screen, shell, globalShortcut } from 'electron';
+import { app, BrowserWindow, Menu, Tray, dialog, ipcMain, nativeImage, screen, session, shell, globalShortcut } from 'electron';
 import { existsSync, promises as fs, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -715,6 +715,18 @@ function bootstrapApp(): void {
 
   app.on('will-quit', () => {
     globalShortcut.unregisterAll();
+  });
+
+  // Content-Security-Policy: restrict resources to same origin, allow inline styles and data: images
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self'; font-src 'self'",
+        ],
+      },
+    });
   });
 
   app.whenReady().then(async () => {
