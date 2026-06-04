@@ -5,17 +5,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & Dev
 
 ```bash
-npm run dev          # Start all three processes concurrently (Vite + tsc watch + Electron)
-npm run build        # Production build (Vite build + tsc)
-npm run build:renderer  # Vite only (outputs to dist/renderer/)
-npm run build:main   # tsc only (outputs to dist/main/)
+npm run dev          # Start Vite dev server + compile & launch Electron (vite-plugin-electron)
+npm run build        # Production build (Vite compiles renderer + electron in one step)
+npm run test         # Run Vitest unit tests
 ```
 
-The dev workflow runs three things in parallel:
+The dev workflow uses `vite-plugin-electron` to handle everything in one process:
 
-1. `vite` — serves the renderer at `localhost:5173`
-2. `tsc -p electron/tsconfig.json -w` — watches and recompiles main process
-3. `electron dist/main/main.js` — launches the app (waits for Vite + tsc to be ready first)
+1. `vite` serves the renderer at `localhost:5173`
+2. `vite-plugin-electron` compiles `electron/main.ts` and `electron/preload.ts` on change
+3. Electron is automatically launched/restarted when main process recompiles
 
 ## Architecture
 
@@ -103,7 +102,7 @@ The main process and renderer both normalize loaded configs — missing or inval
 ### Key constraints
 
 - **No framework** — the renderer builds HTML via template literals and manipulates the DOM directly. There is no React/Vue/Svelte.
-- **ESM in renderer, CommonJS in main** — the Vite build outputs ESM for the browser; the electron TypeScript compiles to CommonJS (`dist/main/`).
+- **ESM in renderer, CommonJS in main** — `vite-plugin-electron` compiles both; electron files output to `dist/main/` as CommonJS bundles.
 - **`screenshot-desktop` is a CJS require** — it must be `require()`'d, not imported (see `electron/main.ts` line 8).
 - **The reader window is frameless** — moving and resizing are handled by custom CSS regions + `setReaderWindowBounds` IPC calls.
 - **Reader text is rendered via `innerHTML`** — the `normalizeReaderText()` function escapes HTML entities to prevent XSS from novel file content.

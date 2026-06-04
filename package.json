@@ -5,19 +5,14 @@
   "description": "HiddenPage - a lightweight local novel reader for Windows.",
   "main": "dist/main/main.js",
   "scripts": {
-    "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:main\" \"npm:dev:electron\"",
-    "dev:renderer": "vite",
-    "dev:main": "tsc -p electron/tsconfig.json -w --preserveWatchOutput",
-    "dev:electron": "wait-on tcp:5173 dist/main/main.js && electron dist/main/main.js",
-    "build": "npm run build:renderer && npm run build:main",
+    "dev": "vite",
+    "build": "vite build",
     "build:renderer": "vite build",
-    "build:main": "tsc -p electron/tsconfig.json",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "preview": "vite preview"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "pngjs": "^7.0.0",
@@ -26,7 +21,6 @@
   "devDependencies": {
     "@types/node": "^22.15.30",
     "@types/pngjs": "^6.0.5",
-    "concurrently": "^9.1.2",
     "electron": "^42.3.2",
     "eslint": "^10.4.1",
     "eslint-config-prettier": "^10.1.8",
@@ -34,7 +28,8 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.60.1",
     "vite": "^6.3.5",
-    "vitest": "^4.1.8",
-    "wait-on": "^8.0.4"
+    "vite-plugin-electron": "^1.0.1",
+    "vite-plugin-electron-renderer": "^1.0.0",
+    "vitest": "^4.1.8"
   }
 }
