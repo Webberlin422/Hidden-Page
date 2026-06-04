@@ -31,7 +31,10 @@ function parseShortcut(shortcut: string): ShortcutState | null {
     return null;
   }
 
-  const parts = trimmed.split('+').map((part) => part.trim()).filter(Boolean);
+  const parts = trimmed
+    .split('+')
+    .map((part) => part.trim())
+    .filter(Boolean);
   let key = '';
   let ctrl = false;
   let alt = false;
@@ -107,8 +110,10 @@ export function matchesShortcut(event: KeyboardEvent, shortcut: string): boolean
 
 export function normalizeShortcutConfig(config: Partial<ShortcutConfig> | null | undefined, defaults: ShortcutConfig): ShortcutConfig {
   return {
-    toggleWindow: typeof config?.toggleWindow === 'string' && config.toggleWindow.trim() ? config.toggleWindow.trim() : defaults.toggleWindow,
-    previousPage: typeof config?.previousPage === 'string' && config.previousPage.trim() ? config.previousPage.trim() : defaults.previousPage,
+    toggleWindow:
+      typeof config?.toggleWindow === 'string' && config.toggleWindow.trim() ? config.toggleWindow.trim() : defaults.toggleWindow,
+    previousPage:
+      typeof config?.previousPage === 'string' && config.previousPage.trim() ? config.previousPage.trim() : defaults.previousPage,
     nextPage: typeof config?.nextPage === 'string' && config.nextPage.trim() ? config.nextPage.trim() : defaults.nextPage,
   };
 }

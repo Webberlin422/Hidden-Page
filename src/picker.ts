@@ -105,7 +105,6 @@ export async function bootstrapPicker(picker: PickerElements, pickerState: Picke
     renderPickerMagnifier(0, 0);
 
     await window.hiddenPage.showScreenColorPickerWindow();
-
   } catch (error) {
     console.error('Failed to prepare screen picker:', error);
     picker.hex.textContent = '无法获取屏幕图像';
@@ -154,7 +153,13 @@ export async function bootstrapPicker(picker: PickerElements, pickerState: Picke
   }
 
   async function updatePointer(event: PointerEvent | MouseEvent): Promise<void> {
-    if (!pickerState.image || !pickerState.canvas || !pickerState.context || !pickerState.magnifierCanvas || !pickerState.magnifierContext) {
+    if (
+      !pickerState.image ||
+      !pickerState.canvas ||
+      !pickerState.context ||
+      !pickerState.magnifierCanvas ||
+      !pickerState.magnifierContext
+    ) {
       return;
     }
 
@@ -168,8 +173,14 @@ export async function bootstrapPicker(picker: PickerElements, pickerState: Picke
     picker.reticle.style.left = `${Math.round(offsetX - 14)}px`;
     picker.reticle.style.top = `${Math.round(offsetY - 14)}px`;
 
-    const sampleX = Math.min(Math.max(0, Math.floor((offsetX / Math.max(1, rect.width)) * Math.max(1, pickerState.imageWidth))), Math.max(0, pickerState.imageWidth - 1));
-    const sampleY = Math.min(Math.max(0, Math.floor((offsetY / Math.max(1, rect.height)) * Math.max(1, pickerState.imageHeight))), Math.max(0, pickerState.imageHeight - 1));
+    const sampleX = Math.min(
+      Math.max(0, Math.floor((offsetX / Math.max(1, rect.width)) * Math.max(1, pickerState.imageWidth))),
+      Math.max(0, pickerState.imageWidth - 1),
+    );
+    const sampleY = Math.min(
+      Math.max(0, Math.floor((offsetY / Math.max(1, rect.height)) * Math.max(1, pickerState.imageHeight))),
+      Math.max(0, pickerState.imageHeight - 1),
+    );
 
     try {
       const sampled = await window.hiddenPage.samplePixelColor(sampleX, sampleY);
@@ -201,8 +212,14 @@ export async function bootstrapPicker(picker: PickerElements, pickerState: Picke
     const rect = picker.image.getBoundingClientRect();
     const offsetX = Math.min(rect.width, Math.max(0, event.clientX - rect.left));
     const offsetY = Math.min(rect.height, Math.max(0, event.clientY - rect.top));
-    const sampleX = Math.min(Math.max(0, Math.floor((offsetX / Math.max(1, rect.width)) * Math.max(1, pickerState.imageWidth))), Math.max(0, pickerState.imageWidth - 1));
-    const sampleY = Math.min(Math.max(0, Math.floor((offsetY / Math.max(1, rect.height)) * Math.max(1, pickerState.imageHeight))), Math.max(0, pickerState.imageHeight - 1));
+    const sampleX = Math.min(
+      Math.max(0, Math.floor((offsetX / Math.max(1, rect.width)) * Math.max(1, pickerState.imageWidth))),
+      Math.max(0, pickerState.imageWidth - 1),
+    );
+    const sampleY = Math.min(
+      Math.max(0, Math.floor((offsetY / Math.max(1, rect.height)) * Math.max(1, pickerState.imageHeight))),
+      Math.max(0, pickerState.imageHeight - 1),
+    );
 
     const sampled = await window.hiddenPage.samplePixelColor(sampleX, sampleY);
     if (!sampled.hex) {

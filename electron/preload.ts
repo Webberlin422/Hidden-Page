@@ -1,17 +1,36 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { defaultShortcutConfig } from './shortcuts';
-import type { ShortcutConfig, OpenTextFileResult, ScreenThumbnailResult, PixelSampleResult, WindowBoundsResult, ReaderSettings, DocumentLoadedHandler } from './types';
+import type {
+  ShortcutConfig,
+  OpenTextFileResult,
+  ScreenThumbnailResult,
+  PixelSampleResult,
+  WindowBoundsResult,
+  ReaderSettings,
+  DocumentLoadedHandler,
+} from './types';
 
-export type { ShortcutConfig, OpenTextFileResult, ScreenThumbnailResult, PixelSampleResult, WindowBoundsResult, ReaderSettings, DocumentLoadedHandler };
+export type {
+  ShortcutConfig,
+  OpenTextFileResult,
+  ScreenThumbnailResult,
+  PixelSampleResult,
+  WindowBoundsResult,
+  ReaderSettings,
+  DocumentLoadedHandler,
+};
 
 contextBridge.exposeInMainWorld('hiddenPage', {
   openTextFile: (): Promise<OpenTextFileResult | null> => ipcRenderer.invoke('reader:open-text-file'),
   openTextFileAtPath: (filePath: string): Promise<OpenTextFileResult> => ipcRenderer.invoke('reader:open-text-file-path', filePath),
   loadDocument: (document: OpenTextFileResult): Promise<OpenTextFileResult | null> => ipcRenderer.invoke('reader:load-document', document),
-  openScreenColorPicker: (mode: 'fontColor' | 'backgroundColor'): Promise<string | null> => ipcRenderer.invoke('settings:open-screen-color-picker', mode),
+  openScreenColorPicker: (mode: 'fontColor' | 'backgroundColor'): Promise<string | null> =>
+    ipcRenderer.invoke('settings:open-screen-color-picker', mode),
   showScreenColorPickerWindow: (): Promise<void> => ipcRenderer.invoke('picker:show-window'),
-  captureDisplayThumbnail: (displayId: string): Promise<ScreenThumbnailResult> => ipcRenderer.invoke('picker:capture-display-thumbnail', displayId),
-  samplePixelColor: (pixelX: number, pixelY: number): Promise<PixelSampleResult> => ipcRenderer.invoke('picker:sample-pixel-color', pixelX, pixelY),
+  captureDisplayThumbnail: (displayId: string): Promise<ScreenThumbnailResult> =>
+    ipcRenderer.invoke('picker:capture-display-thumbnail', displayId),
+  samplePixelColor: (pixelX: number, pixelY: number): Promise<PixelSampleResult> =>
+    ipcRenderer.invoke('picker:sample-pixel-color', pixelX, pixelY),
   completeScreenColorPick: (color: string | null): Promise<string | null> => ipcRenderer.invoke('picker:complete-color-pick', color),
   onDocumentLoaded: (handler: DocumentLoadedHandler): void => {
     ipcRenderer.on('reader:document-loaded', (_event, document: OpenTextFileResult) => handler(document));
@@ -23,8 +42,10 @@ contextBridge.exposeInMainWorld('hiddenPage', {
     ipcRenderer.on('reader:global-turn-page', (_event, direction: 'previous' | 'next') => handler(direction));
   },
   getReaderWindowBounds: (): Promise<WindowBoundsResult | null> => ipcRenderer.invoke('reader:get-window-bounds'),
-  setReaderWindowBounds: (bounds: WindowBoundsResult): Promise<WindowBoundsResult | null> => ipcRenderer.invoke('reader:set-window-bounds', bounds),
-  applyReaderSettings: (settings: ReaderSettings): Promise<ReaderSettings> => ipcRenderer.invoke('settings:apply-reader-settings', settings),
+  setReaderWindowBounds: (bounds: WindowBoundsResult): Promise<WindowBoundsResult | null> =>
+    ipcRenderer.invoke('reader:set-window-bounds', bounds),
+  applyReaderSettings: (settings: ReaderSettings): Promise<ReaderSettings> =>
+    ipcRenderer.invoke('settings:apply-reader-settings', settings),
   getShortcutConfig: (): Promise<ShortcutConfig> => ipcRenderer.invoke('settings:get-shortcuts'),
   saveShortcutConfig: (config: ShortcutConfig): Promise<ShortcutConfig> => ipcRenderer.invoke('settings:update-shortcuts', config),
   setGlobalShortcutEnabled: (enabled: boolean): Promise<boolean> => ipcRenderer.invoke('settings:set-global-shortcut-enabled', enabled),

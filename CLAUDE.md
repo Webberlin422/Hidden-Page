@@ -12,6 +12,7 @@ npm run build:main   # tsc only (outputs to dist/main/)
 ```
 
 The dev workflow runs three things in parallel:
+
 1. `vite` — serves the renderer at `localhost:5173`
 2. `tsc -p electron/tsconfig.json -w` — watches and recompiles main process
 3. `electron dist/main/main.js` — launches the app (waits for Vite + tsc to be ready first)
@@ -55,11 +56,11 @@ HiddenPage is an Electron desktop novel reader for Windows. It runs in the syste
 
 The renderer is a single HTML page (`index.html` → `src/app.ts`). The `?mode=` URL parameter selects which UI to render:
 
-| Mode | Purpose | Key elements |
-|------|---------|-------------|
-| `reader` | Frameless reading window | Custom drag/resize handles, scroll-based pagination, progress saving |
-| `settings` | Full settings panel | Font size/color, line height, shortcut recording, screen color picker trigger |
-| `picker` | Full-screen color picker | Screenshot backdrop, crosshair reticle, magnifier, pixel sampling via IPC |
+| Mode       | Purpose                  | Key elements                                                                  |
+| ---------- | ------------------------ | ----------------------------------------------------------------------------- |
+| `reader`   | Frameless reading window | Custom drag/resize handles, scroll-based pagination, progress saving          |
+| `settings` | Full settings panel      | Font size/color, line height, shortcut recording, screen color picker trigger |
+| `picker`   | Full-screen color picker | Screenshot backdrop, crosshair reticle, magnifier, pixel sampling via IPC     |
 
 ### Window management (main process)
 
@@ -89,13 +90,13 @@ The renderer gets its shortcut defaults from the main process via `window.hidden
 
 ### Data persistence
 
-| What | Where | Format |
-|------|-------|--------|
-| Reader settings (font, colors) | `localStorage` (`hidden-page.settings`) | JSON |
-| Reading progress (scroll position per file) | `localStorage` (`hidden-page.progress`) | JSON |
-| Last opened document path | `localStorage` (`hidden-page.last-document-path`) | string |
-| Shortcut config | `userData/shortcut-config.json` | JSON |
-| Reader window bounds | `userData/reader-window-bounds.json` | JSON |
+| What                                        | Where                                             | Format |
+| ------------------------------------------- | ------------------------------------------------- | ------ |
+| Reader settings (font, colors)              | `localStorage` (`hidden-page.settings`)           | JSON   |
+| Reading progress (scroll position per file) | `localStorage` (`hidden-page.progress`)           | JSON   |
+| Last opened document path                   | `localStorage` (`hidden-page.last-document-path`) | string |
+| Shortcut config                             | `userData/shortcut-config.json`                   | JSON   |
+| Reader window bounds                        | `userData/reader-window-bounds.json`              | JSON   |
 
 The main process and renderer both normalize loaded configs — missing or invalid fields fall back to hardcoded defaults.
 
@@ -111,12 +112,12 @@ The main process and renderer both normalize loaded configs — missing or inval
 
 This project includes the `deepboost` skill (`.claude/skills/claude-boost/SKILL.md`) for DeepSeek self-enhancement via multi-persona collaboration. It calls the same DeepSeek API with a different role (reviewer instead of author) — same model, fresh perspective, zero setup:
 
-| Command | Purpose |
-|---------|---------|
-| `/boost <task>` | Second opinion plans the approach → you execute |
-| `/review` | You build → second opinion reviews → you fix |
-| `/bounce <problem>` | Quick inline consultation on a single sub-problem |
-| `/dual <task>` | Both perspectives solve independently → compare & synthesize |
+| Command             | Purpose                                                      |
+| ------------------- | ------------------------------------------------------------ |
+| `/boost <task>`     | Second opinion plans the approach → you execute              |
+| `/review`           | You build → second opinion reviews → you fix                 |
+| `/bounce <problem>` | Quick inline consultation on a single sub-problem            |
+| `/dual <task>`      | Both perspectives solve independently → compare & synthesize |
 
 **Zero configuration** — uses existing `ANTHROPIC_AUTH_TOKEN`. No extra API key needed.
 

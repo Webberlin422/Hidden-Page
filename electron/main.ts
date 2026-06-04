@@ -7,6 +7,7 @@ import type { ReaderSettings, ScreenThumbnailResult, PixelSampleResult } from '.
 import { PNG } from 'pngjs';
 import { state, type ColorPickMode } from './state';
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const screenshotDesktop = require('screenshot-desktop') as {
   (options?: { screen?: string; format?: 'png' | 'jpg' | 'jpeg' | 'bmp' }): Promise<Buffer>;
   listDisplays?: () => Promise<Array<{ id: string; name?: string }>>;
@@ -20,7 +21,7 @@ function getReaderWindowBoundsPath(): string {
   return path.join(app.getPath('userData'), 'reader-window-bounds.json');
 }
 
-function defaultReaderWindowBounds(): { x: number; y: number; width: number; height: number; } {
+function defaultReaderWindowBounds(): { x: number; y: number; width: number; height: number } {
   return {
     x: 80,
     y: 80,
@@ -29,7 +30,12 @@ function defaultReaderWindowBounds(): { x: number; y: number; width: number; hei
   };
 }
 
-function normalizeReaderWindowBounds(bounds: { x: number; y: number; width: number; height: number; }): { x: number; y: number; width: number; height: number; } {
+function normalizeReaderWindowBounds(bounds: { x: number; y: number; width: number; height: number }): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
   const minimumWidth = 56;
   const minimumHeight = 38;
   const workArea = screen.getDisplayMatching(bounds).workArea;
@@ -46,10 +52,10 @@ function normalizeReaderWindowBounds(bounds: { x: number; y: number; width: numb
   };
 }
 
-function loadReaderWindowBounds(): { x: number; y: number; width: number; height: number; } {
+function loadReaderWindowBounds(): { x: number; y: number; width: number; height: number } {
   try {
     const raw = readFileSync(getReaderWindowBoundsPath(), 'utf8');
-    const parsed = JSON.parse(raw) as Partial<{ x: number; y: number; width: number; height: number; }>;
+    const parsed = JSON.parse(raw) as Partial<{ x: number; y: number; width: number; height: number }>;
 
     if ([parsed.x, parsed.y, parsed.width, parsed.height].every((value) => typeof value === 'number' && Number.isFinite(value))) {
       return normalizeReaderWindowBounds({
@@ -66,7 +72,7 @@ function loadReaderWindowBounds(): { x: number; y: number; width: number; height
   return defaultReaderWindowBounds();
 }
 
-async function saveReaderWindowBounds(bounds: { x: number; y: number; width: number; height: number; }): Promise<void> {
+async function saveReaderWindowBounds(bounds: { x: number; y: number; width: number; height: number }): Promise<void> {
   try {
     await fs.writeFile(getReaderWindowBoundsPath(), JSON.stringify(normalizeReaderWindowBounds(bounds), null, 2), 'utf8');
   } catch (error) {
@@ -76,8 +82,14 @@ async function saveReaderWindowBounds(bounds: { x: number; y: number; width: num
 
 function normalizeShortcutConfig(config: Partial<ShortcutConfig> | null | undefined): ShortcutConfig {
   return {
-    toggleWindow: typeof config?.toggleWindow === 'string' && config.toggleWindow.trim() ? config.toggleWindow.trim() : defaultShortcutConfig.toggleWindow,
-    previousPage: typeof config?.previousPage === 'string' && config.previousPage.trim() ? config.previousPage.trim() : defaultShortcutConfig.previousPage,
+    toggleWindow:
+      typeof config?.toggleWindow === 'string' && config.toggleWindow.trim()
+        ? config.toggleWindow.trim()
+        : defaultShortcutConfig.toggleWindow,
+    previousPage:
+      typeof config?.previousPage === 'string' && config.previousPage.trim()
+        ? config.previousPage.trim()
+        : defaultShortcutConfig.previousPage,
     nextPage: typeof config?.nextPage === 'string' && config.nextPage.trim() ? config.nextPage.trim() : defaultShortcutConfig.nextPage,
   };
 }
@@ -116,7 +128,7 @@ function setReaderWindowBackgroundColor(color: string): void {
   }
 }
 
-async function loadTextDocumentFromDialog(targetWindow: BrowserWindow): Promise<{ path: string; name: string; content: string; } | null> {
+async function loadTextDocumentFromDialog(targetWindow: BrowserWindow): Promise<{ path: string; name: string; content: string } | null> {
   const result = await dialog.showOpenDialog(targetWindow, {
     title: '选择小说文件',
     properties: ['openFile'],
@@ -166,10 +178,7 @@ function turnPageInReader(direction: 'previous' | 'next'): void {
 }
 
 function getAssetPath(fileName: string): string {
-  const candidates = [
-    path.join(process.cwd(), 'assets', fileName),
-    path.join(app.getAppPath(), 'assets', fileName),
-  ];
+  const candidates = [path.join(process.cwd(), 'assets', fileName), path.join(app.getAppPath(), 'assets', fileName)];
 
   for (const candidate of candidates) {
     if (existsSync(candidate)) {
@@ -181,10 +190,7 @@ function getAssetPath(fileName: string): string {
 }
 
 function createAppIcon(size = 256) {
-  const iconPaths = [
-    getAssetPath('icon.ico'),
-    getAssetPath('icon.png'),
-  ];
+  const iconPaths = [getAssetPath('icon.ico'), getAssetPath('icon.png')];
 
   for (const iconPath of iconPaths) {
     const image = nativeImage.createFromPath(iconPath);
@@ -217,9 +223,7 @@ function createAppIcon(size = 256) {
 }
 
 function getRendererUrl(mode: 'reader' | 'settings' | 'picker', params?: Record<string, string>): string {
-  const baseUrl = app.isPackaged
-    ? pathToFileURL(path.join(__dirname, '../renderer/index.html')).toString()
-    : 'http://localhost:5173/';
+  const baseUrl = app.isPackaged ? pathToFileURL(path.join(__dirname, '../renderer/index.html')).toString() : 'http://localhost:5173/';
 
   const url = new URL(baseUrl);
   url.searchParams.set('mode', mode);
@@ -401,7 +405,7 @@ function createWindow(mode: 'reader' | 'settings', autoShow = true): BrowserWind
     window.hide();
   });
 
-  function debouncedSaveReaderWindowBounds(bounds: { x: number; y: number; width: number; height: number; }): void {
+  function debouncedSaveReaderWindowBounds(bounds: { x: number; y: number; width: number; height: number }): void {
     if (state.readerBoundsSaveTimer !== null) {
       clearTimeout(state.readerBoundsSaveTimer);
     }
@@ -574,7 +578,7 @@ function registerIpcHandlers(): void {
     return loadTextDocumentFromDialog(targetWindow);
   });
 
-  ipcMain.handle('reader:load-document', async (_event, document: { path: string; name: string; content: string; }) => {
+  ipcMain.handle('reader:load-document', async (_event, document: { path: string; name: string; content: string }) => {
     if (!state.readerWindow) {
       showReaderWindow();
     }
@@ -644,7 +648,7 @@ function registerIpcHandlers(): void {
     return targetWindow?.getBounds() ?? null;
   });
 
-  ipcMain.handle('reader:set-window-bounds', async (event, bounds: { x: number; y: number; width: number; height: number; }) => {
+  ipcMain.handle('reader:set-window-bounds', async (event, bounds: { x: number; y: number; width: number; height: number }) => {
     const targetWindow = BrowserWindow.fromWebContents(event.sender);
 
     if (!targetWindow || targetWindow.isDestroyed()) {

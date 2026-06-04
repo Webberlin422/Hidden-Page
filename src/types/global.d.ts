@@ -1,4 +1,12 @@
-import type { DocumentLoadedHandler, OpenTextFileResult, ReaderSettings, ShortcutConfig, ScreenThumbnailResult, PixelSampleResult, WindowBoundsResult } from '../../electron/types';
+import type {
+  DocumentLoadedHandler,
+  OpenTextFileResult,
+  ReaderSettings,
+  ShortcutConfig,
+  ScreenThumbnailResult,
+  PixelSampleResult,
+  WindowBoundsResult,
+} from '../../electron/types';
 
 type ColorPickerMode = 'fontColor' | 'backgroundColor';
 

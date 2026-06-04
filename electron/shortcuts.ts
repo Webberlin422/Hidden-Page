@@ -16,16 +16,18 @@ export const legacyShortcutConfig: ShortcutConfig = {
 };
 
 export function isLegacyShortcutConfig(config: Partial<ShortcutConfig> | null | undefined): boolean {
-  return config?.toggleWindow === legacyShortcutConfig.toggleWindow
-    && config?.previousPage === legacyShortcutConfig.previousPage
-    && config?.nextPage === legacyShortcutConfig.nextPage;
+  return (
+    config?.toggleWindow === legacyShortcutConfig.toggleWindow &&
+    config?.previousPage === legacyShortcutConfig.previousPage &&
+    config?.nextPage === legacyShortcutConfig.nextPage
+  );
 }
 
 export function registerGlobalShortcuts(
   config: ShortcutConfig,
   toggleWindow: () => void,
   previousPage: () => void,
-  nextPage: () => void
+  nextPage: () => void,
 ): string[] {
   globalShortcut.unregisterAll();
   const failed: string[] = [];

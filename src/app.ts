@@ -1,6 +1,13 @@
 import './styles/app.css';
 import { loadJson, saveJson } from './utils/storage';
-import { formatShortcut, isShortcutModifierOnlyKey, matchesShortcut, normalizeShortcutConfig, serializeShortcutEvent, type ShortcutConfig } from './utils/shortcut';
+import {
+  formatShortcut,
+  isShortcutModifierOnlyKey,
+  matchesShortcut,
+  normalizeShortcutConfig,
+  serializeShortcutEvent,
+  type ShortcutConfig,
+} from './utils/shortcut';
 import type { ReaderSettings, WindowBoundsResult } from '../../electron/types';
 import { buildPickerMarkup, bootstrapPicker, type PickerState } from './picker';
 
@@ -36,11 +43,8 @@ type StoredReaderSettings = Partial<ReaderSettings> & {
 };
 
 const appUrl = new URL(window.location.href);
-const appMode = appUrl.searchParams.get('mode') === 'settings'
-  ? 'settings'
-  : appUrl.searchParams.get('mode') === 'picker'
-    ? 'picker'
-    : 'reader';
+const appMode =
+  appUrl.searchParams.get('mode') === 'settings' ? 'settings' : appUrl.searchParams.get('mode') === 'picker' ? 'picker' : 'reader';
 
 const state = {
   mode: appMode as AppMode,
@@ -52,7 +56,7 @@ const state = {
 
 const pickerState: PickerState = {
   displayId: appUrl.searchParams.get('displayId') ?? '',
-  field: (appUrl.searchParams.get('field') === 'backgroundColor' ? 'backgroundColor' : 'fontColor'),
+  field: appUrl.searchParams.get('field') === 'backgroundColor' ? 'backgroundColor' : 'fontColor',
   image: null,
   canvas: null,
   context: null,
@@ -79,38 +83,41 @@ if (state.mode === 'picker') {
   appRoot.innerHTML = buildSettingsMarkup();
 }
 
-const readerElements = state.mode === 'reader'
-  ? {
-      viewport: document.querySelector<HTMLDivElement>('#readerViewport')!,
-      content: document.querySelector<HTMLElement>('#readerContent')!,
-    }
-  : null;
+const readerElements =
+  state.mode === 'reader'
+    ? {
+        viewport: document.querySelector<HTMLDivElement>('#readerViewport')!,
+        content: document.querySelector<HTMLElement>('#readerContent')!,
+      }
+    : null;
 
-const settingsElements = state.mode === 'settings'
-  ? {
-      fontSizeValue: document.querySelector<HTMLElement>('#fontSizeValue')!,
-      lineHeightValue: document.querySelector<HTMLElement>('#lineHeightValue')!,
-      fontPreview: document.querySelector<HTMLElement>('#fontSizePreview')!,
-    fontColorValue: document.querySelector<HTMLElement>('#fontColorValue')!,
-    backgroundColorValue: document.querySelector<HTMLElement>('#backgroundColorValue')!,
-      shortcutSummary: document.querySelector<HTMLElement>('#shortcutSummary')!,
-      statusLine: document.querySelector<HTMLElement>('#settingsStatus')!,
-    importButton: document.querySelector<HTMLButtonElement>('#importNovelButton')!,
-      fontSize: document.querySelector<HTMLInputElement>('[data-setting="fontSize"]')!,
-    lineHeight: document.querySelector<HTMLInputElement>('[data-setting="lineHeight"]')!,
-    fontColor: document.querySelector<HTMLInputElement>('[data-setting="fontColor"]')!,
-    backgroundColor: document.querySelector<HTMLInputElement>('[data-setting="backgroundColor"]')!,
-    pickFontColor: document.querySelector<HTMLButtonElement>('[data-pick-color="fontColor"]')!,
-    pickBackgroundColor: document.querySelector<HTMLButtonElement>('[data-pick-color="backgroundColor"]')!,
-      applyButton: document.querySelector<HTMLButtonElement>('#applyReaderSettingsButton')!,
-      nextPage: document.querySelector<HTMLInputElement>('[data-shortcut="nextPage"]')!,
-      previousPage: document.querySelector<HTMLInputElement>('[data-shortcut="previousPage"]')!,
-      toggleWindow: document.querySelector<HTMLInputElement>('[data-shortcut="toggleWindow"]')!,
-      restoreButton: document.querySelector<HTMLButtonElement>('#restoreShortcutsButton')!,
-    }
-  : null;
+const settingsElements =
+  state.mode === 'settings'
+    ? {
+        fontSizeValue: document.querySelector<HTMLElement>('#fontSizeValue')!,
+        lineHeightValue: document.querySelector<HTMLElement>('#lineHeightValue')!,
+        fontPreview: document.querySelector<HTMLElement>('#fontSizePreview')!,
+        fontColorValue: document.querySelector<HTMLElement>('#fontColorValue')!,
+        backgroundColorValue: document.querySelector<HTMLElement>('#backgroundColorValue')!,
+        shortcutSummary: document.querySelector<HTMLElement>('#shortcutSummary')!,
+        statusLine: document.querySelector<HTMLElement>('#settingsStatus')!,
+        importButton: document.querySelector<HTMLButtonElement>('#importNovelButton')!,
+        fontSize: document.querySelector<HTMLInputElement>('[data-setting="fontSize"]')!,
+        lineHeight: document.querySelector<HTMLInputElement>('[data-setting="lineHeight"]')!,
+        fontColor: document.querySelector<HTMLInputElement>('[data-setting="fontColor"]')!,
+        backgroundColor: document.querySelector<HTMLInputElement>('[data-setting="backgroundColor"]')!,
+        pickFontColor: document.querySelector<HTMLButtonElement>('[data-pick-color="fontColor"]')!,
+        pickBackgroundColor: document.querySelector<HTMLButtonElement>('[data-pick-color="backgroundColor"]')!,
+        applyButton: document.querySelector<HTMLButtonElement>('#applyReaderSettingsButton')!,
+        nextPage: document.querySelector<HTMLInputElement>('[data-shortcut="nextPage"]')!,
+        previousPage: document.querySelector<HTMLInputElement>('[data-shortcut="previousPage"]')!,
+        toggleWindow: document.querySelector<HTMLInputElement>('[data-shortcut="toggleWindow"]')!,
+        restoreButton: document.querySelector<HTMLButtonElement>('#restoreShortcutsButton')!,
+      }
+    : null;
 
-  const pickerElements = state.mode === 'picker'
+const pickerElements =
+  state.mode === 'picker'
     ? {
         image: document.querySelector<HTMLImageElement>('#pickerImage')!,
         reticle: document.querySelector<HTMLElement>('#pickerReticle')!,
@@ -321,16 +328,17 @@ function legacyBackgroundToColor(background?: string): string | null {
 }
 
 function normalizeReaderSettings(raw: StoredReaderSettings | null | undefined): ReaderSettings {
-  const fontSize = typeof raw?.fontSize === 'number' && Number.isFinite(raw.fontSize)
-    ? Math.min(30, Math.max(1, Math.round(raw.fontSize)))
-    : defaultReaderSettings.fontSize;
-  const lineHeight = typeof raw?.lineHeight === 'number' && Number.isFinite(raw.lineHeight)
-    ? Math.min(3, Math.max(0.5, Math.round(raw.lineHeight * 100) / 100))
-    : defaultReaderSettings.lineHeight;
+  const fontSize =
+    typeof raw?.fontSize === 'number' && Number.isFinite(raw.fontSize)
+      ? Math.min(30, Math.max(1, Math.round(raw.fontSize)))
+      : defaultReaderSettings.fontSize;
+  const lineHeight =
+    typeof raw?.lineHeight === 'number' && Number.isFinite(raw.lineHeight)
+      ? Math.min(3, Math.max(0.5, Math.round(raw.lineHeight * 100) / 100))
+      : defaultReaderSettings.lineHeight;
   const fontColorFallback = raw?.theme === 'dark' ? '#edf2ff' : defaultReaderSettings.fontColor;
-  const backgroundColorFallback = raw?.theme === 'dark'
-    ? '#121a2f'
-    : legacyBackgroundToColor(raw?.background) ?? defaultReaderSettings.backgroundColor;
+  const backgroundColorFallback =
+    raw?.theme === 'dark' ? '#121a2f' : (legacyBackgroundToColor(raw?.background) ?? defaultReaderSettings.backgroundColor);
 
   return {
     fontSize,
@@ -486,12 +494,7 @@ async function cancelShortcutRecording(message = '已取消录制。'): Promise<
 }
 
 function normalizeReaderText(value: string): string {
-  return value
-    .split('&').join('&amp;')
-    .split('<').join('&lt;')
-    .split('>').join('&gt;')
-    .split('"').join('&quot;')
-    .split("'").join('&#39;');
+  return value.split('&').join('&amp;').split('<').join('&lt;').split('>').join('&gt;').split('"').join('&quot;').split("'").join('&#39;');
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -597,15 +600,13 @@ function bindReaderEvents(): void {
   }
 
   const readerShell = document.querySelector<HTMLDivElement>('.reader-shell');
-  let dragState:
-    | {
-        type: 'move' | 'resize';
-        handle: string;
-        startX: number;
-        startY: number;
-        bounds: WindowBoundsResult;
-      }
-    | null = null;
+  let dragState: {
+    type: 'move' | 'resize';
+    handle: string;
+    startX: number;
+    startY: number;
+    bounds: WindowBoundsResult;
+  } | null = null;
 
   const resizeCursorMap: Record<string, string> = {
     top: 'ns-resize',
@@ -694,7 +695,7 @@ function bindReaderEvents(): void {
       bounds,
     };
 
-    document.body.style.cursor = type === 'move' ? 'grabbing' : resizeCursorMap[handle] ?? 'default';
+    document.body.style.cursor = type === 'move' ? 'grabbing' : (resizeCursorMap[handle] ?? 'default');
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', stopDragging, { once: true });
     window.addEventListener('pointercancel', stopDragging, { once: true });
@@ -718,10 +719,11 @@ function bindReaderEvents(): void {
 
   const syncSettingsFromStorage = (): void => {
     const normalized = normalizeReaderSettings(loadJson<StoredReaderSettings>(SETTINGS_KEY, defaultReaderSettings));
-    const hasChanged = normalized.fontSize !== state.settings.fontSize
-      || normalized.lineHeight !== state.settings.lineHeight
-      || normalized.fontColor !== state.settings.fontColor
-      || normalized.backgroundColor !== state.settings.backgroundColor;
+    const hasChanged =
+      normalized.fontSize !== state.settings.fontSize ||
+      normalized.lineHeight !== state.settings.lineHeight ||
+      normalized.fontColor !== state.settings.fontColor ||
+      normalized.backgroundColor !== state.settings.backgroundColor;
 
     if (!hasChanged) {
       return;
@@ -775,13 +777,21 @@ function bindReaderEvents(): void {
     }
   });
 
-  readerElements.viewport.addEventListener('wheel', (event) => {
-    event.preventDefault();
-  }, { passive: false });
+  readerElements.viewport.addEventListener(
+    'wheel',
+    (event) => {
+      event.preventDefault();
+    },
+    { passive: false },
+  );
 
-  readerElements.viewport.addEventListener('touchmove', (event) => {
-    event.preventDefault();
-  }, { passive: false });
+  readerElements.viewport.addEventListener(
+    'touchmove',
+    (event) => {
+      event.preventDefault();
+    },
+    { passive: false },
+  );
 
   window.addEventListener('beforeunload', () => {
     if (state.document && readerElements) {
