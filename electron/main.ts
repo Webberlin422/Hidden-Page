@@ -1,31 +1,15 @@
 import { app, BrowserWindow, Menu, Tray, dialog, ipcMain, nativeImage, screen, shell, globalShortcut } from 'electron';
-import { existsSync, promises as fs, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, promises as fs, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { defaultShortcutConfig, isLegacyShortcutConfig, registerGlobalShortcuts, type ShortcutConfig } from './shortcuts';
+import type { ReaderSettings, ScreenThumbnailResult, PixelSampleResult } from './types';
 import { PNG } from 'pngjs';
 
 const screenshotDesktop = require('screenshot-desktop') as {
   (options?: { screen?: string; format?: 'png' | 'jpg' | 'jpeg' | 'bmp' }): Promise<Buffer>;
   listDisplays?: () => Promise<Array<{ id: string; name?: string }>>;
 };
-
-interface ScreenThumbnailResult {
-  dataUrl: string;
-  width: number;
-  height: number;
-}
-
-interface PixelSampleResult {
-  hex: string | null;
-}
-
-interface ReaderSettings {
-  fontSize: number;
-  lineHeight: number;
-  fontColor: string;
-  backgroundColor: string;
-}
 
 let readerWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
@@ -94,9 +78,9 @@ function loadReaderWindowBounds(): { x: number; y: number; width: number; height
   return defaultReaderWindowBounds();
 }
 
-function saveReaderWindowBounds(bounds: { x: number; y: number; width: number; height: number; }): void {
+async function saveReaderWindowBounds(bounds: { x: number; y: number; width: number; height: number; }): Promise<void> {
   try {
-    writeFileSync(getReaderWindowBoundsPath(), JSON.stringify(normalizeReaderWindowBounds(bounds), null, 2), 'utf8');
+    await fs.writeFile(getReaderWindowBoundsPath(), JSON.stringify(normalizeReaderWindowBounds(bounds), null, 2), 'utf8');
   } catch (error) {
     console.error('Failed to save reader window bounds:', error);
   }
@@ -417,14 +401,14 @@ function createWindow(mode: 'reader' | 'settings', autoShow = true): BrowserWind
   window.on('close', (event) => {
     if (isQuitting) {
       if (isReader) {
-        saveReaderWindowBounds(window.getBounds());
+        void saveReaderWindowBounds(window.getBounds());
       }
       return;
     }
 
     event.preventDefault();
     if (isReader) {
-      saveReaderWindowBounds(window.getBounds());
+      void saveReaderWindowBounds(window.getBounds());
     }
     window.hide();
   });
@@ -435,7 +419,7 @@ function createWindow(mode: 'reader' | 'settings', autoShow = true): BrowserWind
     }
     readerBoundsSaveTimer = setTimeout(() => {
       readerBoundsSaveTimer = null;
-      saveReaderWindowBounds(bounds);
+      void saveReaderWindowBounds(bounds);
     }, 150);
   }
 
@@ -687,7 +671,7 @@ function registerIpcHandlers(): void {
     };
 
     targetWindow.setBounds(nextBounds, false);
-    saveReaderWindowBounds(targetWindow.getBounds());
+    void saveReaderWindowBounds(targetWindow.getBounds());
     return targetWindow.getBounds();
   });
 

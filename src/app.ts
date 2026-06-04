@@ -1,6 +1,7 @@
 import './styles/app.css';
 import { loadJson, saveJson } from './utils/storage';
 import { formatShortcut, isShortcutModifierOnlyKey, matchesShortcut, normalizeShortcutConfig, serializeShortcutEvent, type ShortcutConfig } from './utils/shortcut';
+import type { ReaderSettings, WindowBoundsResult } from '../../electron/types';
 
 interface ReaderDocument {
   path: string;
@@ -8,22 +9,8 @@ interface ReaderDocument {
   content: string;
 }
 
-interface ReaderSettings {
-  fontSize: number;
-  lineHeight: number;
-  fontColor: string;
-  backgroundColor: string;
-}
-
 interface ProgressState {
   [path: string]: number;
-}
-
-interface WindowBoundsResult {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
 }
 
 type AppMode = 'reader' | 'settings' | 'picker';

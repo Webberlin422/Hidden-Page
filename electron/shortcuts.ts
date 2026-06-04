@@ -1,10 +1,7 @@
 import { globalShortcut } from 'electron';
+import type { ShortcutConfig } from './types';
 
-export interface ShortcutConfig {
-  toggleWindow: string;
-  previousPage: string;
-  nextPage: string;
-}
+export type { ShortcutConfig };
 
 export const defaultShortcutConfig: ShortcutConfig = {
   toggleWindow: 'Alt+M',

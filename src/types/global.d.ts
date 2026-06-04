@@ -1,23 +1,6 @@
-import type { DocumentLoadedHandler, OpenTextFileResult, ReaderSettings, ShortcutConfig } from '../../electron/preload';
+import type { DocumentLoadedHandler, OpenTextFileResult, ReaderSettings, ShortcutConfig, ScreenThumbnailResult, PixelSampleResult, WindowBoundsResult } from '../../electron/types';
 
 type ColorPickerMode = 'fontColor' | 'backgroundColor';
-
-interface ScreenThumbnailResult {
-  dataUrl: string;
-  width: number;
-  height: number;
-}
-
-interface PixelSampleResult {
-  hex: string | null;
-}
-
-interface WindowBoundsResult {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
 
 declare global {
   interface Window {

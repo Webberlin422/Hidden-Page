@@ -1,8 +1,6 @@
-export interface ShortcutConfig {
-  toggleWindow: string;
-  previousPage: string;
-  nextPage: string;
-}
+import type { ShortcutConfig } from '../../electron/types';
+
+export type { ShortcutConfig };
 
 type ShortcutState = {
   ctrl: boolean;
