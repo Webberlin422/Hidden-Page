@@ -62,19 +62,31 @@ npm run build
 ```bash
 Hidden-Page/
 ├── electron/
-│   ├── main.ts
-│   ├── preload.ts
-│   └── shortcuts.ts
+│   ├── main.ts              # 应用入口、IPC 注册、生命周期
+│   ├── preload.ts            # contextBridge API
+│   ├── shortcuts.ts          # 全局快捷键注册
+│   ├── state.ts              # 共享状态管理
+│   └── types.ts              # 共享类型定义
 ├── novels/
+│   ├── book-of-the-lantern-river.txt
 │   └── whisper-in-the-rain.txt
 ├── src/
-│   ├── app.ts
+│   ├── app.ts                # 渲染进程入口、模式调度
+│   ├── picker.ts             # 屏幕取色器模块
 │   ├── styles/
 │   │   └── app.css
 │   ├── types/
-│   │   └── global.d.ts
+│   │   ├── global.d.ts       # window.hiddenPage 类型声明
+│   │   └── styles.d.ts       # CSS 模块声明
 │   └── utils/
-│       └── shortcut.ts
+│       ├── shortcut.ts       # 快捷键解析/匹配
+│       └── storage.ts        # localStorage 封装
+├── assets/
+│   ├── icon.ico
+│   └── icon.png
+├── .editorconfig
+├── .gitignore
+├── CLAUDE.md
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
