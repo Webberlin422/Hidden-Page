@@ -1,4 +1,4 @@
-import type { ShortcutConfig } from '../../electron/types';
+import type { ShortcutConfig } from '../types/shared';
 
 export type { ShortcutConfig };
 

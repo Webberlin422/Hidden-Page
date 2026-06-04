@@ -8,7 +8,7 @@ import {
   serializeShortcutEvent,
   type ShortcutConfig,
 } from './utils/shortcut';
-import type { ReaderSettings, WindowBoundsResult } from '../../electron/types';
+import type { ReaderSettings, WindowBoundsResult } from './types/shared';
 import { buildPickerMarkup, bootstrapPicker, type PickerState } from './picker';
 
 interface ReaderDocument {

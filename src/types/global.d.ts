@@ -6,7 +6,7 @@ import type {
   ScreenThumbnailResult,
   PixelSampleResult,
   WindowBoundsResult,
-} from '../../electron/types';
+} from './shared';
 
 type ColorPickerMode = 'fontColor' | 'backgroundColor';
 
