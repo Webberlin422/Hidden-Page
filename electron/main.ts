@@ -5,24 +5,12 @@ import { pathToFileURL } from 'node:url';
 import { defaultShortcutConfig, isLegacyShortcutConfig, registerGlobalShortcuts, type ShortcutConfig } from './shortcuts';
 import type { ReaderSettings, ScreenThumbnailResult, PixelSampleResult } from './types';
 import { PNG } from 'pngjs';
+import { state, type ColorPickMode } from './state';
 
 const screenshotDesktop = require('screenshot-desktop') as {
   (options?: { screen?: string; format?: 'png' | 'jpg' | 'jpeg' | 'bmp' }): Promise<Buffer>;
   listDisplays?: () => Promise<Array<{ id: string; name?: string }>>;
 };
-
-let readerWindow: BrowserWindow | null = null;
-let settingsWindow: BrowserWindow | null = null;
-let tray: Tray | null = null;
-let colorPickerWindow: BrowserWindow | null = null;
-let isQuitting = false;
-let shortcutConfig: ShortcutConfig = { ...defaultShortcutConfig };
-let globalShortcutEnabled = true;
-let activeColorPickerResolve: ((color: string | null) => void) | null = null;
-let latestPickerPng: PNG | null = null;
-let readerBoundsSaveTimer: ReturnType<typeof setTimeout> | null = null;
-
-type ColorPickMode = 'fontColor' | 'backgroundColor';
 
 function getShortcutConfigPath(): string {
   return path.join(app.getPath('userData'), 'shortcut-config.json');
@@ -119,9 +107,9 @@ async function saveShortcutConfig(config: ShortcutConfig): Promise<void> {
 }
 
 function setReaderWindowBackgroundColor(color: string): void {
-  if (readerWindow && !readerWindow.isDestroyed()) {
+  if (state.readerWindow && !state.readerWindow.isDestroyed()) {
     try {
-      readerWindow.setBackgroundColor(color);
+      state.readerWindow.setBackgroundColor(color);
     } catch (e) {
       console.error('Failed to set window background color:', e);
     }
@@ -155,25 +143,25 @@ async function loadTextDocumentFromDialog(targetWindow: BrowserWindow): Promise<
 function syncGlobalShortcutRegistration(): void {
   globalShortcut.unregisterAll();
 
-  if (!globalShortcutEnabled) {
+  if (!state.globalShortcutEnabled) {
     return;
   }
 
   const failedKeys = registerGlobalShortcuts(
-    shortcutConfig,
+    state.shortcutConfig,
     toggleReaderWindow,
     () => turnPageInReader('previous'),
     () => turnPageInReader('next'),
   );
 
-  if (failedKeys.length > 0 && settingsWindow && !settingsWindow.isDestroyed()) {
-    settingsWindow.webContents.send('settings:shortcut-registration-failed', failedKeys);
+  if (failedKeys.length > 0 && state.settingsWindow && !state.settingsWindow.isDestroyed()) {
+    state.settingsWindow.webContents.send('settings:shortcut-registration-failed', failedKeys);
   }
 }
 
 function turnPageInReader(direction: 'previous' | 'next'): void {
-  if (readerWindow && !readerWindow.isDestroyed() && readerWindow.isVisible()) {
-    readerWindow.webContents.send('reader:global-turn-page', direction);
+  if (state.readerWindow && !state.readerWindow.isDestroyed() && state.readerWindow.isVisible()) {
+    state.readerWindow.webContents.send('reader:global-turn-page', direction);
   }
 }
 
@@ -244,15 +232,15 @@ function getRendererUrl(mode: 'reader' | 'settings' | 'picker', params?: Record<
 }
 
 function resolveColorPick(color: string | null): void {
-  latestPickerPng = null;
+  state.latestPickerPng = null;
 
-  if (activeColorPickerResolve) {
-    activeColorPickerResolve(color);
-    activeColorPickerResolve = null;
+  if (state.activeColorPickerResolve) {
+    state.activeColorPickerResolve(color);
+    state.activeColorPickerResolve = null;
   }
 
-  if (colorPickerWindow && !colorPickerWindow.isDestroyed()) {
-    colorPickerWindow.close();
+  if (state.colorPickerWindow && !state.colorPickerWindow.isDestroyed()) {
+    state.colorPickerWindow.close();
   }
 }
 
@@ -298,8 +286,8 @@ function createColorPickerWindow(mode: ColorPickMode): BrowserWindow {
   });
 
   window.on('closed', () => {
-    if (colorPickerWindow === window) {
-      colorPickerWindow = null;
+    if (state.colorPickerWindow === window) {
+      state.colorPickerWindow = null;
       resolveColorPick(null);
     }
   });
@@ -324,7 +312,7 @@ async function captureScreenThumbnail(displayId: string): Promise<ScreenThumbnai
   }
 
   const buffer = await screenshotDesktop(screenshotOptions);
-  latestPickerPng = PNG.sync.read(buffer);
+  state.latestPickerPng = PNG.sync.read(buffer);
   const image = nativeImage.createFromBuffer(buffer);
 
   if (image.isEmpty()) {
@@ -339,17 +327,17 @@ async function captureScreenThumbnail(displayId: string): Promise<ScreenThumbnai
 }
 
 function samplePixelColor(pixelX: number, pixelY: number): PixelSampleResult {
-  if (!latestPickerPng) {
+  if (!state.latestPickerPng) {
     return { hex: null };
   }
 
-  const x = Math.max(0, Math.min(latestPickerPng.width - 1, Math.floor(pixelX)));
-  const y = Math.max(0, Math.min(latestPickerPng.height - 1, Math.floor(pixelY)));
-  const index = (latestPickerPng.width * y + x) * 4;
-  const red = latestPickerPng.data[index];
-  const green = latestPickerPng.data[index + 1];
-  const blue = latestPickerPng.data[index + 2];
-  const alpha = latestPickerPng.data[index + 3];
+  const x = Math.max(0, Math.min(state.latestPickerPng.width - 1, Math.floor(pixelX)));
+  const y = Math.max(0, Math.min(state.latestPickerPng.height - 1, Math.floor(pixelY)));
+  const index = (state.latestPickerPng.width * y + x) * 4;
+  const red = state.latestPickerPng.data[index];
+  const green = state.latestPickerPng.data[index + 1];
+  const blue = state.latestPickerPng.data[index + 2];
+  const alpha = state.latestPickerPng.data[index + 3];
 
   if (alpha === 0) {
     return { hex: null };
@@ -399,7 +387,7 @@ function createWindow(mode: 'reader' | 'settings', autoShow = true): BrowserWind
   }
 
   window.on('close', (event) => {
-    if (isQuitting) {
+    if (state.isQuitting) {
       if (isReader) {
         void saveReaderWindowBounds(window.getBounds());
       }
@@ -414,11 +402,11 @@ function createWindow(mode: 'reader' | 'settings', autoShow = true): BrowserWind
   });
 
   function debouncedSaveReaderWindowBounds(bounds: { x: number; y: number; width: number; height: number; }): void {
-    if (readerBoundsSaveTimer !== null) {
-      clearTimeout(readerBoundsSaveTimer);
+    if (state.readerBoundsSaveTimer !== null) {
+      clearTimeout(state.readerBoundsSaveTimer);
     }
-    readerBoundsSaveTimer = setTimeout(() => {
-      readerBoundsSaveTimer = null;
+    state.readerBoundsSaveTimer = setTimeout(() => {
+      state.readerBoundsSaveTimer = null;
       void saveReaderWindowBounds(bounds);
     }, 150);
   }
@@ -439,9 +427,9 @@ function createWindow(mode: 'reader' | 'settings', autoShow = true): BrowserWind
 
   window.on('closed', () => {
     if (isReader) {
-      readerWindow = null;
+      state.readerWindow = null;
     } else {
-      settingsWindow = null;
+      state.settingsWindow = null;
     }
   });
 
@@ -456,76 +444,76 @@ function createWindow(mode: 'reader' | 'settings', autoShow = true): BrowserWind
 }
 
 function openColorPicker(mode: ColorPickMode): Promise<string | null> {
-  if (colorPickerWindow && !colorPickerWindow.isDestroyed()) {
-    colorPickerWindow.close();
+  if (state.colorPickerWindow && !state.colorPickerWindow.isDestroyed()) {
+    state.colorPickerWindow.close();
   }
 
   // Resolve any stale pending promise so it doesn't hang forever
-  if (activeColorPickerResolve) {
-    const stale = activeColorPickerResolve;
-    activeColorPickerResolve = null;
+  if (state.activeColorPickerResolve) {
+    const stale = state.activeColorPickerResolve;
+    state.activeColorPickerResolve = null;
     stale(null);
   }
 
   return new Promise<string | null>((resolve) => {
     const timeout = setTimeout(() => {
-      if (activeColorPickerResolve) {
-        activeColorPickerResolve = null;
+      if (state.activeColorPickerResolve) {
+        state.activeColorPickerResolve = null;
         resolve(null);
-        if (colorPickerWindow && !colorPickerWindow.isDestroyed()) {
-          colorPickerWindow.close();
+        if (state.colorPickerWindow && !state.colorPickerWindow.isDestroyed()) {
+          state.colorPickerWindow.close();
         }
       }
     }, 120_000);
 
-    activeColorPickerResolve = (color: string | null) => {
+    state.activeColorPickerResolve = (color: string | null) => {
       clearTimeout(timeout);
       resolve(color);
     };
-    colorPickerWindow = createColorPickerWindow(mode);
+    state.colorPickerWindow = createColorPickerWindow(mode);
   });
 }
 
 function showReaderWindow(): void {
-  if (!readerWindow) {
-    readerWindow = createWindow('reader');
+  if (!state.readerWindow) {
+    state.readerWindow = createWindow('reader');
   }
 
-  if (readerWindow.isMinimized()) {
-    readerWindow.restore();
+  if (state.readerWindow.isMinimized()) {
+    state.readerWindow.restore();
   }
 
-  readerWindow.show();
-  readerWindow.focus();
+  state.readerWindow.show();
+  state.readerWindow.focus();
 }
 
 function hideReaderWindow(): void {
-  readerWindow?.hide();
+  state.readerWindow?.hide();
 }
 
 function showSettingsWindow(): void {
-  if (!settingsWindow) {
-    settingsWindow = createWindow('settings');
+  if (!state.settingsWindow) {
+    state.settingsWindow = createWindow('settings');
   }
 
-  if (settingsWindow.isMinimized()) {
-    settingsWindow.restore();
+  if (state.settingsWindow.isMinimized()) {
+    state.settingsWindow.restore();
   }
 
-  settingsWindow.show();
-  settingsWindow.focus();
+  state.settingsWindow.show();
+  state.settingsWindow.focus();
 }
 
 function toggleReaderWindow(): void {
-  if (!readerWindow) {
-    readerWindow = createWindow('reader');
+  if (!state.readerWindow) {
+    state.readerWindow = createWindow('reader');
   }
 
-  if (settingsWindow?.isFocused()) {
+  if (state.settingsWindow?.isFocused()) {
     return;
   }
 
-  if (readerWindow.isVisible()) {
+  if (state.readerWindow.isVisible()) {
     hideReaderWindow();
     return;
   }
@@ -535,24 +523,24 @@ function toggleReaderWindow(): void {
 
 function createTray(): void {
   const icon = getAssetPath('icon.ico');
-  tray = new Tray(icon);
-  tray.setToolTip('HiddenPage');
-  tray.setContextMenu(
+  state.tray = new Tray(icon);
+  state.tray.setToolTip('HiddenPage');
+  state.tray.setContextMenu(
     Menu.buildFromTemplate([
       {
         label: '打开小说',
         click: async () => {
-          if (!readerWindow) {
+          if (!state.readerWindow) {
             showReaderWindow();
           }
 
-          if (!readerWindow) {
+          if (!state.readerWindow) {
             return;
           }
 
-          const document = await loadTextDocumentFromDialog(readerWindow);
+          const document = await loadTextDocumentFromDialog(state.readerWindow);
           if (document) {
-            readerWindow.webContents.send('reader:document-loaded', document);
+            state.readerWindow.webContents.send('reader:document-loaded', document);
             showReaderWindow();
           }
         },
@@ -563,21 +551,21 @@ function createTray(): void {
       {
         label: '退出',
         click: () => {
-          isQuitting = true;
+          state.isQuitting = true;
           app.quit();
         },
       },
     ]),
   );
 
-  tray.on('double-click', () => {
+  state.tray.on('double-click', () => {
     showReaderWindow();
   });
 }
 
 function registerIpcHandlers(): void {
   ipcMain.handle('reader:open-text-file', async () => {
-    const targetWindow = readerWindow ?? settingsWindow;
+    const targetWindow = state.readerWindow ?? state.settingsWindow;
 
     if (!targetWindow || targetWindow.isDestroyed()) {
       return null;
@@ -587,16 +575,16 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('reader:load-document', async (_event, document: { path: string; name: string; content: string; }) => {
-    if (!readerWindow) {
+    if (!state.readerWindow) {
       showReaderWindow();
     }
 
     // showReaderWindow creates the window synchronously; if it's still null something went wrong
-    if (!readerWindow) {
+    if (!state.readerWindow) {
       return null;
     }
 
-    readerWindow.webContents.send('reader:document-loaded', document);
+    state.readerWindow.webContents.send('reader:document-loaded', document);
     showReaderWindow();
     return document;
   });
@@ -611,24 +599,24 @@ function registerIpcHandlers(): void {
     };
   });
 
-  ipcMain.handle('settings:get-shortcuts', async () => shortcutConfig);
+  ipcMain.handle('settings:get-shortcuts', async () => state.shortcutConfig);
 
   ipcMain.handle('settings:update-shortcuts', async (_event, nextConfig: ShortcutConfig) => {
-    shortcutConfig = normalizeShortcutConfig(nextConfig);
-    await saveShortcutConfig(shortcutConfig);
+    state.shortcutConfig = normalizeShortcutConfig(nextConfig);
+    await saveShortcutConfig(state.shortcutConfig);
     syncGlobalShortcutRegistration();
-    return shortcutConfig;
+    return state.shortcutConfig;
   });
 
   ipcMain.handle('settings:set-global-shortcut-enabled', async (_event, enabled: boolean) => {
-    globalShortcutEnabled = enabled;
+    state.globalShortcutEnabled = enabled;
     syncGlobalShortcutRegistration();
-    return globalShortcutEnabled;
+    return state.globalShortcutEnabled;
   });
 
   ipcMain.handle('settings:apply-reader-settings', async (_event, settings: ReaderSettings) => {
-    if (readerWindow && !readerWindow.isDestroyed()) {
-      readerWindow.webContents.send('reader:settings-applied', settings);
+    if (state.readerWindow && !state.readerWindow.isDestroyed()) {
+      state.readerWindow.webContents.send('reader:settings-applied', settings);
     }
 
     setReaderWindowBackgroundColor(settings.backgroundColor);
@@ -685,9 +673,9 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('picker:show-window', async () => {
-    if (colorPickerWindow && !colorPickerWindow.isDestroyed()) {
-      colorPickerWindow.show();
-      colorPickerWindow.focus();
+    if (state.colorPickerWindow && !state.colorPickerWindow.isDestroyed()) {
+      state.colorPickerWindow.show();
+      state.colorPickerWindow.focus();
     }
   });
 
@@ -718,7 +706,7 @@ function bootstrapApp(): void {
   });
 
   app.on('before-quit', () => {
-    isQuitting = true;
+    state.isQuitting = true;
   });
 
   app.on('will-quit', () => {
@@ -727,8 +715,8 @@ function bootstrapApp(): void {
 
   app.whenReady().then(async () => {
     try {
-      shortcutConfig = await loadShortcutConfig();
-      readerWindow = createWindow('reader', false);
+      state.shortcutConfig = await loadShortcutConfig();
+      state.readerWindow = createWindow('reader', false);
       createTray();
       registerIpcHandlers();
       syncGlobalShortcutRegistration();
