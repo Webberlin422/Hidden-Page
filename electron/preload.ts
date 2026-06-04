@@ -64,6 +64,9 @@ contextBridge.exposeInMainWorld('hiddenPage', {
   saveShortcutConfig: (config: ShortcutConfig): Promise<ShortcutConfig> => ipcRenderer.invoke('settings:update-shortcuts', config),
   setGlobalShortcutEnabled: (enabled: boolean): Promise<boolean> => ipcRenderer.invoke('settings:set-global-shortcut-enabled', enabled),
   setBackgroundColor: (color: string): Promise<void> => ipcRenderer.invoke('reader:set-background-color', color),
+  onShortcutRegistrationFailed: (handler: (failedKeys: string[]) => void): void => {
+    ipcRenderer.on('settings:shortcut-registration-failed', (_event, failedKeys: string[]) => handler(failedKeys));
+  },
   getDefaultShortcutConfig: (): ShortcutConfig => ({ ...defaultShortcutConfig }),
   hideWindow: (): Promise<void> => ipcRenderer.invoke('reader:hide-window'),
   showWindow: (): Promise<void> => ipcRenderer.invoke('reader:show-window'),

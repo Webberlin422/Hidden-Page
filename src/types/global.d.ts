@@ -41,6 +41,7 @@ declare global {
       setGlobalShortcutEnabled: (enabled: boolean) => Promise<boolean>;
       setBackgroundColor: (color: string) => Promise<void>;
       getDefaultShortcutConfig: () => ShortcutConfig;
+      onShortcutRegistrationFailed: (handler: (failedKeys: string[]) => void) => void;
       hideWindow: () => Promise<void>;
       showWindow: () => Promise<void>;
       toggleWindow: () => Promise<void>;

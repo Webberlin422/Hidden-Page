@@ -33,7 +33,6 @@ type ColorField = 'fontColor' | 'backgroundColor';
 const SETTINGS_KEY = 'hidden-page.settings';
 const PROGRESS_KEY = 'hidden-page.progress';
 const LAST_DOCUMENT_KEY = 'hidden-page.last-document-path';
-const MODE_KEY = 'hidden-page.mode';
 
 const defaultReaderSettings: ReaderSettings = {
   fontSize: 20,
@@ -99,9 +98,12 @@ if (!appRoot) {
   throw new Error('App root not found');
 }
 
-appRoot.innerHTML = state.mode === 'reader' ? buildReaderMarkup() : buildSettingsMarkup();
 if (state.mode === 'picker') {
   appRoot.innerHTML = buildPickerMarkup();
+} else if (state.mode === 'reader') {
+  appRoot.innerHTML = buildReaderMarkup();
+} else {
+  appRoot.innerHTML = buildSettingsMarkup();
 }
 
 const readerElements = state.mode === 'reader'
@@ -151,7 +153,6 @@ const settingsElements = state.mode === 'settings'
     : null;
 
 let progressSaveTimer: number | null = null;
-let shortcutSaveTimer: number | null = null;
 let activeShortcutField: ShortcutField | null = null;
 let globalShortcutPaused = false;
 
@@ -830,6 +831,13 @@ function bindReaderEvents(): void {
   readerElements.viewport.addEventListener('touchmove', (event) => {
     event.preventDefault();
   }, { passive: false });
+
+  window.addEventListener('beforeunload', () => {
+    if (state.document && readerElements) {
+      state.progress[state.document.path] = readerElements.viewport.scrollTop;
+      saveJson(PROGRESS_KEY, state.progress);
+    }
+  });
 }
 
 async function saveShortcutConfigWithStatus(nextConfig: ShortcutConfig, statusText: string): Promise<void> {
@@ -993,6 +1001,13 @@ async function bootstrap(): Promise<void> {
   renderShortcutInputs();
   renderShortcutSummary();
   bindSettingsEvents();
+
+  window.hiddenPage.onShortcutRegistrationFailed((failedKeys) => {
+    if (settingsElements) {
+      settingsElements.statusLine.textContent = `警告：以下快捷键注册失败，可能与其他应用冲突：${failedKeys.join('、')}`;
+    }
+  });
+
   if (settingsElements) {
     settingsElements.fontSize.value = String(state.settings.fontSize);
     settingsElements.lineHeight.value = String(state.settings.lineHeight);

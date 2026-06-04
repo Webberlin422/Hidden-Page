@@ -175,12 +175,16 @@ function syncGlobalShortcutRegistration(): void {
     return;
   }
 
-  registerGlobalShortcuts(
+  const failedKeys = registerGlobalShortcuts(
     shortcutConfig,
     toggleReaderWindow,
     () => turnPageInReader('previous'),
     () => turnPageInReader('next'),
   );
+
+  if (failedKeys.length > 0 && settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.webContents.send('settings:shortcut-registration-failed', failedKeys);
+  }
 }
 
 function turnPageInReader(direction: 'previous' | 'next'): void {
@@ -480,7 +484,20 @@ function openColorPicker(mode: ColorPickMode): Promise<string | null> {
   }
 
   return new Promise<string | null>((resolve) => {
-    activeColorPickerResolve = resolve;
+    const timeout = setTimeout(() => {
+      if (activeColorPickerResolve) {
+        activeColorPickerResolve = null;
+        resolve(null);
+        if (colorPickerWindow && !colorPickerWindow.isDestroyed()) {
+          colorPickerWindow.close();
+        }
+      }
+    }, 120_000);
+
+    activeColorPickerResolve = (color: string | null) => {
+      clearTimeout(timeout);
+      resolve(color);
+    };
     colorPickerWindow = createColorPickerWindow(mode);
   });
 }

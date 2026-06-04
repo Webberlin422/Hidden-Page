@@ -29,30 +29,30 @@ export function registerGlobalShortcuts(
   toggleWindow: () => void,
   previousPage: () => void,
   nextPage: () => void
-): boolean {
+): string[] {
   globalShortcut.unregisterAll();
-  let allRegistered = true;
+  const failed: string[] = [];
 
   if (config.toggleWindow.trim()) {
     if (!globalShortcut.register(config.toggleWindow, toggleWindow)) {
       console.warn(`Failed to register global shortcut: ${config.toggleWindow}`);
-      allRegistered = false;
+      failed.push(config.toggleWindow);
     }
   }
 
   if (config.previousPage.trim()) {
     if (!globalShortcut.register(config.previousPage, previousPage)) {
       console.warn(`Failed to register global shortcut: ${config.previousPage}`);
-      allRegistered = false;
+      failed.push(config.previousPage);
     }
   }
 
   if (config.nextPage.trim()) {
     if (!globalShortcut.register(config.nextPage, nextPage)) {
       console.warn(`Failed to register global shortcut: ${config.nextPage}`);
-      allRegistered = false;
+      failed.push(config.nextPage);
     }
   }
 
-  return allRegistered;
+  return failed;
 }
