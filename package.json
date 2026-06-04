@@ -12,13 +12,15 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "npx playwright test"
   },
   "dependencies": {
     "pngjs": "^7.0.0",
     "screenshot-desktop": "^1.15.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/node": "^22.15.30",
     "@types/pngjs": "^6.0.5",
     "electron": "^42.3.2",

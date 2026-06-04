@@ -745,7 +745,10 @@ function bootstrapApp(): void {
   });
 }
 
-if (!app.requestSingleInstanceLock()) {
+// Skip single-instance lock in test mode (E2E tests launch isolated instances)
+if (process.env.NODE_ENV === 'test') {
+  bootstrapApp();
+} else if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   bootstrapApp();
