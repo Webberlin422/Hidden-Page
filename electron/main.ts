@@ -223,7 +223,10 @@ function createAppIcon(size = 256) {
 }
 
 function getRendererUrl(mode: 'reader' | 'settings' | 'picker', params?: Record<string, string>): string {
-  const baseUrl = app.isPackaged ? pathToFileURL(path.join(__dirname, '../renderer/index.html')).toString() : 'http://localhost:5173/';
+  const htmlFile = mode === 'reader' ? 'index.html' : `${mode}.html`;
+  const baseUrl = app.isPackaged
+    ? pathToFileURL(path.join(__dirname, '../renderer/', htmlFile)).toString()
+    : `http://localhost:5173/${htmlFile}`;
 
   const url = new URL(baseUrl);
   url.searchParams.set('mode', mode);
@@ -717,19 +720,19 @@ function bootstrapApp(): void {
     globalShortcut.unregisterAll();
   });
 
-  // Content-Security-Policy: restrict resources to same origin, allow inline styles and data: images
-  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    callback({
-      responseHeaders: {
-        ...details.responseHeaders,
-        'Content-Security-Policy': [
-          "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self'; font-src 'self'",
-        ],
-      },
-    });
-  });
-
   app.whenReady().then(async () => {
+    // Content-Security-Policy: restrict resources to same origin, allow inline styles and data: images
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [
+            "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self'; font-src 'self'",
+          ],
+        },
+      });
+    });
+
     try {
       state.shortcutConfig = await loadShortcutConfig();
       state.readerWindow = createWindow('reader', false);

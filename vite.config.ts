@@ -7,6 +7,13 @@ export default defineConfig({
   build: {
     outDir: 'dist/renderer',
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        settings: fileURLToPath(new URL('./settings.html', import.meta.url)),
+        picker: fileURLToPath(new URL('./picker.html', import.meta.url)),
+      },
+    },
   },
   resolve: {
     alias: {

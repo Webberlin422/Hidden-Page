@@ -9,7 +9,7 @@ import {
   type ShortcutConfig,
 } from './utils/shortcut';
 import type { ReaderSettings, WindowBoundsResult } from './types/shared';
-import { buildPickerMarkup, bootstrapPicker, type PickerState } from './picker';
+import { bootstrapPicker, type PickerState } from './picker';
 
 interface ReaderDocument {
   path: string;
@@ -75,183 +75,66 @@ if (!appRoot) {
   throw new Error('App root not found');
 }
 
-if (state.mode === 'picker') {
-  appRoot.innerHTML = buildPickerMarkup();
-} else if (state.mode === 'reader') {
-  appRoot.innerHTML = buildReaderMarkup();
-} else {
-  appRoot.innerHTML = buildSettingsMarkup();
+function queryRequired<T extends HTMLElement>(selector: string): T {
+  const el = document.querySelector<T>(selector);
+  if (!el) {
+    throw new Error(`Missing required element: ${selector}`);
+  }
+  return el;
 }
 
 const readerElements =
   state.mode === 'reader'
     ? {
-        viewport: document.querySelector<HTMLDivElement>('#readerViewport')!,
-        content: document.querySelector<HTMLElement>('#readerContent')!,
+        viewport: queryRequired<HTMLDivElement>('#readerViewport'),
+        content: queryRequired<HTMLElement>('#readerContent'),
       }
     : null;
 
 const settingsElements =
   state.mode === 'settings'
     ? {
-        fontSizeValue: document.querySelector<HTMLElement>('#fontSizeValue')!,
-        lineHeightValue: document.querySelector<HTMLElement>('#lineHeightValue')!,
-        fontPreview: document.querySelector<HTMLElement>('#fontSizePreview')!,
-        fontColorValue: document.querySelector<HTMLElement>('#fontColorValue')!,
-        backgroundColorValue: document.querySelector<HTMLElement>('#backgroundColorValue')!,
-        shortcutSummary: document.querySelector<HTMLElement>('#shortcutSummary')!,
-        statusLine: document.querySelector<HTMLElement>('#settingsStatus')!,
-        importButton: document.querySelector<HTMLButtonElement>('#importNovelButton')!,
-        fontSize: document.querySelector<HTMLInputElement>('[data-setting="fontSize"]')!,
-        lineHeight: document.querySelector<HTMLInputElement>('[data-setting="lineHeight"]')!,
-        fontColor: document.querySelector<HTMLInputElement>('[data-setting="fontColor"]')!,
-        backgroundColor: document.querySelector<HTMLInputElement>('[data-setting="backgroundColor"]')!,
-        pickFontColor: document.querySelector<HTMLButtonElement>('[data-pick-color="fontColor"]')!,
-        pickBackgroundColor: document.querySelector<HTMLButtonElement>('[data-pick-color="backgroundColor"]')!,
-        applyButton: document.querySelector<HTMLButtonElement>('#applyReaderSettingsButton')!,
-        nextPage: document.querySelector<HTMLInputElement>('[data-shortcut="nextPage"]')!,
-        previousPage: document.querySelector<HTMLInputElement>('[data-shortcut="previousPage"]')!,
-        toggleWindow: document.querySelector<HTMLInputElement>('[data-shortcut="toggleWindow"]')!,
-        restoreButton: document.querySelector<HTMLButtonElement>('#restoreShortcutsButton')!,
+        fontSizeValue: queryRequired<HTMLElement>('#fontSizeValue'),
+        lineHeightValue: queryRequired<HTMLElement>('#lineHeightValue'),
+        fontPreview: queryRequired<HTMLElement>('#fontSizePreview'),
+        fontColorValue: queryRequired<HTMLElement>('#fontColorValue'),
+        backgroundColorValue: queryRequired<HTMLElement>('#backgroundColorValue'),
+        shortcutSummary: queryRequired<HTMLElement>('#shortcutSummary'),
+        statusLine: queryRequired<HTMLElement>('#settingsStatus'),
+        importButton: queryRequired<HTMLButtonElement>('#importNovelButton'),
+        fontSize: queryRequired<HTMLInputElement>('[data-setting="fontSize"]'),
+        lineHeight: queryRequired<HTMLInputElement>('[data-setting="lineHeight"]'),
+        fontColor: queryRequired<HTMLInputElement>('[data-setting="fontColor"]'),
+        backgroundColor: queryRequired<HTMLInputElement>('[data-setting="backgroundColor"]'),
+        pickFontColor: queryRequired<HTMLButtonElement>('[data-pick-color="fontColor"]'),
+        pickBackgroundColor: queryRequired<HTMLButtonElement>('[data-pick-color="backgroundColor"]'),
+        applyButton: queryRequired<HTMLButtonElement>('#applyReaderSettingsButton'),
+        nextPage: queryRequired<HTMLInputElement>('[data-shortcut="nextPage"]'),
+        previousPage: queryRequired<HTMLInputElement>('[data-shortcut="previousPage"]'),
+        toggleWindow: queryRequired<HTMLInputElement>('[data-shortcut="toggleWindow"]'),
+        restoreButton: queryRequired<HTMLButtonElement>('#restoreShortcutsButton'),
       }
     : null;
 
 const pickerElements =
   state.mode === 'picker'
     ? {
-        image: document.querySelector<HTMLImageElement>('#pickerImage')!,
-        reticle: document.querySelector<HTMLElement>('#pickerReticle')!,
-        crosshairHorizontal: document.querySelector<HTMLElement>('#pickerCrosshairHorizontal')!,
-        crosshairVertical: document.querySelector<HTMLElement>('#pickerCrosshairVertical')!,
-        label: document.querySelector<HTMLElement>('#pickerLabel')!,
-        hex: document.querySelector<HTMLElement>('#pickerHex')!,
-        magnifier: document.querySelector<HTMLElement>('#pickerMagnifier')!,
-        magnifierCanvas: document.querySelector<HTMLCanvasElement>('#pickerMagnifierCanvas')!,
-        magnifierColor: document.querySelector<HTMLElement>('#pickerMagnifierColor')!,
-        cancelButton: document.querySelector<HTMLButtonElement>('#pickerCancelButton')!,
+        image: queryRequired<HTMLImageElement>('#pickerImage'),
+        reticle: queryRequired<HTMLElement>('#pickerReticle'),
+        crosshairHorizontal: queryRequired<HTMLElement>('#pickerCrosshairHorizontal'),
+        crosshairVertical: queryRequired<HTMLElement>('#pickerCrosshairVertical'),
+        label: queryRequired<HTMLElement>('#pickerLabel'),
+        hex: queryRequired<HTMLElement>('#pickerHex'),
+        magnifier: queryRequired<HTMLElement>('#pickerMagnifier'),
+        magnifierCanvas: queryRequired<HTMLCanvasElement>('#pickerMagnifierCanvas'),
+        magnifierColor: queryRequired<HTMLElement>('#pickerMagnifierColor'),
+        cancelButton: queryRequired<HTMLButtonElement>('#pickerCancelButton'),
       }
     : null;
 
 let progressSaveTimer: number | null = null;
 let activeShortcutField: ShortcutField | null = null;
 let globalShortcutPaused = false;
-
-function buildReaderMarkup(): string {
-  return `
-    <div class="reader-shell">
-      <div class="reader-shell__move-handle" data-window-drag-handle="move"></div>
-      <div class="reader-shell__resize-handle reader-shell__resize-handle--top" data-window-resize-handle="top"></div>
-      <div class="reader-shell__resize-handle reader-shell__resize-handle--right" data-window-resize-handle="right"></div>
-      <div class="reader-shell__resize-handle reader-shell__resize-handle--bottom" data-window-resize-handle="bottom"></div>
-      <div class="reader-shell__resize-handle reader-shell__resize-handle--left" data-window-resize-handle="left"></div>
-      <div class="reader-shell__resize-handle reader-shell__resize-handle--top-left" data-window-resize-handle="top-left"></div>
-      <div class="reader-shell__resize-handle reader-shell__resize-handle--top-right" data-window-resize-handle="top-right"></div>
-      <div class="reader-shell__resize-handle reader-shell__resize-handle--bottom-right" data-window-resize-handle="bottom-right"></div>
-      <div class="reader-shell__resize-handle reader-shell__resize-handle--bottom-left" data-window-resize-handle="bottom-left"></div>
-      <section class="reader-card">
-        <div class="reader-card__body" id="readerViewport">
-          <article class="reader-card__content reader-card__empty" id="readerContent">
-            <div class="reader-empty__title">等待一本书。</div>
-            <div>从托盘菜单打开小说，或把 txt 拖到这里。</div>
-          </article>
-        </div>
-        <div class="reader-progress" id="readerProgress"></div>
-      </section>
-    </div>
-  `;
-}
-
-function buildSettingsMarkup(): string {
-  return `
-    <div class="settings-shell">
-      <section class="settings-card settings-card--wide">
-        <header class="settings-card__header">
-          <div>
-            <h1>设置页面</h1>
-            <p>只保留字体、字体颜色和背景颜色，尽量减少阅读页可见元素。设置窗口本身不需要隐藏/显示快捷键。</p>
-          </div>
-          <div class="settings-card__badge">Settings</div>
-        </header>
-
-        <div class="settings-sections">
-          <section class="settings-section">
-            <h2>导入小说</h2>
-            <p class="section-note">在这里选择本地 TXT 文件，导入后会直接发送到阅读页。</p>
-            <div class="settings-actions">
-              <button class="toolbar__button toolbar__button--primary" id="importNovelButton" type="button">导入小说</button>
-            </div>
-          </section>
-
-          <section class="settings-section">
-            <h2>阅读外观</h2>
-            <div class="field-grid">
-              <label class="field field--range">
-                <span>字体大小 <em id="fontSizeValue"></em></span>
-                <input class="field__range" data-setting="fontSize" type="range" min="1" max="30" step="1" />
-              </label>
-              <label class="field field--range">
-                <span>行间距 <em id="lineHeightValue"></em></span>
-                <input class="field__range" data-setting="lineHeight" type="range" min="0.5" max="3" step="0.05" />
-              </label>
-              <div class="settings-preview" id="fontSizePreview">
-                <div class="settings-preview__title">字体预览</div>
-                <div class="settings-preview__content">
-                  <p>在设置里拖动字体大小时，这段文字会跟着变化。内容不需要真实小说，主要看字号、行距和阅读密度是否合适。</p>
-                  <p>第二段可以帮你看长句的断行效果，尤其是中文、标点和空白在小字号下的表现。</p>
-                  <p>再来一段，模拟连续阅读时的视觉节奏，方便你挑一个摸鱼也舒服的排版。</p>
-                </div>
-              </div>
-              <label class="field field--color">
-                <span>字体颜色 <em id="fontColorValue"></em></span>
-                <div class="field__control-row">
-                  <input class="field__color" data-setting="fontColor" type="color" />
-                  <button class="toolbar__button field__pick-button" data-pick-color="fontColor" type="button">屏幕取色</button>
-                </div>
-              </label>
-              <label class="field field--color">
-                <span>背景颜色 <em id="backgroundColorValue"></em></span>
-                <div class="field__control-row">
-                  <input class="field__color" data-setting="backgroundColor" type="color" />
-                  <button class="toolbar__button field__pick-button" data-pick-color="backgroundColor" type="button">屏幕取色</button>
-                </div>
-              </label>
-            </div>
-          </section>
-
-          <section class="settings-section">
-            <h2>快捷键</h2>
-            <p class="section-note">仅阅读窗口使用翻页和隐藏显示快捷键。</p>
-            <div class="field-grid">
-              <label class="field">
-                <span>下一页快捷键</span>
-                <input class="field__input" data-shortcut="nextPage" type="text" readonly spellcheck="false" placeholder="点击后按新组合键" />
-              </label>
-              <label class="field">
-                <span>上一页快捷键</span>
-                <input class="field__input" data-shortcut="previousPage" type="text" readonly spellcheck="false" placeholder="点击后按新组合键" />
-              </label>
-              <label class="field">
-                <span>隐藏 / 显示阅读窗</span>
-                <input class="field__input" data-shortcut="toggleWindow" type="text" readonly spellcheck="false" placeholder="点击后按新组合键" />
-              </label>
-            </div>
-            <div class="settings-actions">
-              <button class="toolbar__button" id="restoreShortcutsButton" type="button">恢复默认快捷键</button>
-            </div>
-          </section>
-        </div>
-
-        <div class="settings-card__footer">
-          <div id="shortcutSummary"></div>
-          <div class="settings-card__footer-actions">
-            <button class="toolbar__button toolbar__button--primary" id="applyReaderSettingsButton" type="button">确认应用到阅读页</button>
-            <div id="settingsStatus"></div>
-          </div>
-        </div>
-      </section>
-    </div>
-  `;
-}
 
 function applyVisualSettings(): void {
   document.documentElement.style.setProperty('--reader-font-color', state.settings.fontColor);

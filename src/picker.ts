@@ -28,28 +28,6 @@ export type PickerElements = {
   cancelButton: HTMLButtonElement;
 };
 
-export function buildPickerMarkup(): string {
-  return `
-    <div class="picker-shell" id="pickerShell">
-      <img class="picker-shell__image" id="pickerImage" alt="screen preview" draggable="false" />
-      <div class="picker-shell__overlay">
-        <div class="picker-shell__crosshair picker-shell__crosshair--horizontal" id="pickerCrosshairHorizontal"></div>
-        <div class="picker-shell__crosshair picker-shell__crosshair--vertical" id="pickerCrosshairVertical"></div>
-        <div class="picker-shell__reticle" id="pickerReticle"></div>
-        <div class="picker-shell__magnifier" id="pickerMagnifier">
-          <canvas class="picker-shell__magnifier-canvas" id="pickerMagnifierCanvas" width="180" height="180"></canvas>
-          <div class="picker-shell__magnifier-color" id="pickerMagnifierColor">#000000</div>
-        </div>
-        <div class="picker-shell__hint">
-          <div id="pickerLabel">点击屏幕任意位置取色</div>
-          <div id="pickerHex">Esc 取消，右键取消</div>
-        </div>
-        <button class="picker-shell__cancel" id="pickerCancelButton" type="button">取消</button>
-      </div>
-    </div>
-  `;
-}
-
 export async function bootstrapPicker(picker: PickerElements, pickerState: PickerState): Promise<void> {
   const cancelPicker = async (): Promise<void> => {
     await window.hiddenPage.completeScreenColorPick(null);

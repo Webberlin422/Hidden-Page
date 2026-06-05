@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#121212" />
+    <title>HiddenPage Settings</title>
+  </head>
+  <body>
+    <div id="app">
+      <div class="settings-shell">
+        <section class="settings-card settings-card--wide">
+          <header class="settings-card__header">
+            <div>
+              <h1>设置页面</h1>
+              <p>只保留字体、字体颜色和背景颜色，尽量减少阅读页可见元素。设置窗口本身不需要隐藏/显示快捷键。</p>
+            </div>
+            <div class="settings-card__badge">Settings</div>
+          </header>
+
+          <div class="settings-sections">
+            <section class="settings-section">
+              <h2>导入小说</h2>
+              <p class="section-note">在这里选择本地 TXT 文件，导入后会直接发送到阅读页。</p>
+              <div class="settings-actions">
+                <button class="toolbar__button toolbar__button--primary" id="importNovelButton" type="button">导入小说</button>
+              </div>
+            </section>
+
+            <section class="settings-section">
+              <h2>阅读外观</h2>
+              <div class="field-grid">
+                <label class="field field--range">
+                  <span>字体大小 <em id="fontSizeValue"></em></span>
+                  <input class="field__range" data-setting="fontSize" type="range" min="1" max="30" step="1" />
+                </label>
+                <label class="field field--range">
+                  <span>行间距 <em id="lineHeightValue"></em></span>
+                  <input class="field__range" data-setting="lineHeight" type="range" min="0.5" max="3" step="0.05" />
+                </label>
+                <div class="settings-preview" id="fontSizePreview">
+                  <div class="settings-preview__title">字体预览</div>
+                  <div class="settings-preview__content">
+                    <p>在设置里拖动字体大小时，这段文字会跟着变化。内容不需要真实小说，主要看字号、行距和阅读密度是否合适。</p>
+                    <p>第二段可以帮你看长句的断行效果，尤其是中文、标点和空白在小字号下的表现。</p>
+                    <p>再来一段，模拟连续阅读时的视觉节奏，方便你挑一个摸鱼也舒服的排版。</p>
+                  </div>
+                </div>
+                <label class="field field--color">
+                  <span>字体颜色 <em id="fontColorValue"></em></span>
+                  <div class="field__control-row">
+                    <input class="field__color" data-setting="fontColor" type="color" />
+                    <button class="toolbar__button field__pick-button" data-pick-color="fontColor" type="button">屏幕取色</button>
+                  </div>
+                </label>
+                <label class="field field--color">
+                  <span>背景颜色 <em id="backgroundColorValue"></em></span>
+                  <div class="field__control-row">
+                    <input class="field__color" data-setting="backgroundColor" type="color" />
+                    <button class="toolbar__button field__pick-button" data-pick-color="backgroundColor" type="button">屏幕取色</button>
+                  </div>
+                </label>
+              </div>
+            </section>
+
+            <section class="settings-section">
+              <h2>快捷键</h2>
+              <p class="section-note">仅阅读窗口使用翻页和隐藏显示快捷键。</p>
+              <div class="field-grid">
+                <label class="field">
+                  <span>下一页快捷键</span>
+                  <input class="field__input" data-shortcut="nextPage" type="text" readonly spellcheck="false" placeholder="点击后按新组合键" />
+                </label>
+                <label class="field">
+                  <span>上一页快捷键</span>
+                  <input class="field__input" data-shortcut="previousPage" type="text" readonly spellcheck="false" placeholder="点击后按新组合键" />
+                </label>
+                <label class="field">
+                  <span>隐藏 / 显示阅读窗</span>
+                  <input class="field__input" data-shortcut="toggleWindow" type="text" readonly spellcheck="false" placeholder="点击后按新组合键" />
+                </label>
+              </div>
+              <div class="settings-actions">
+                <button class="toolbar__button" id="restoreShortcutsButton" type="button">恢复默认快捷键</button>
+              </div>
+            </section>
+          </div>
+
+          <div class="settings-card__footer">
+            <div id="shortcutSummary"></div>
+            <div class="settings-card__footer-actions">
+              <button class="toolbar__button toolbar__button--primary" id="applyReaderSettingsButton" type="button">确认应用到阅读页</button>
+              <div id="settingsStatus"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <script type="module" src="/src/app.ts"></script>
+  </body>
+</html>

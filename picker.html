@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#121212" />
+    <title>HiddenPage Color Picker</title>
+  </head>
+  <body>
+    <div id="app">
+      <div class="picker-shell" id="pickerShell">
+        <img class="picker-shell__image" id="pickerImage" alt="screen preview" draggable="false" />
+        <div class="picker-shell__overlay">
+          <div class="picker-shell__crosshair picker-shell__crosshair--horizontal" id="pickerCrosshairHorizontal"></div>
+          <div class="picker-shell__crosshair picker-shell__crosshair--vertical" id="pickerCrosshairVertical"></div>
+          <div class="picker-shell__reticle" id="pickerReticle"></div>
+          <div class="picker-shell__magnifier" id="pickerMagnifier">
+            <canvas class="picker-shell__magnifier-canvas" id="pickerMagnifierCanvas" width="180" height="180"></canvas>
+            <div class="picker-shell__magnifier-color" id="pickerMagnifierColor">#000000</div>
+          </div>
+          <div class="picker-shell__hint">
+            <div id="pickerLabel">点击屏幕任意位置取色</div>
+            <div id="pickerHex">Esc 取消，右键取消</div>
+          </div>
+          <button class="picker-shell__cancel" id="pickerCancelButton" type="button">取消</button>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/app.ts"></script>
+  </body>
+</html>

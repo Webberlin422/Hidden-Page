@@ -7,7 +7,28 @@
     <title>HiddenPage</title>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <div class="reader-shell">
+        <div class="reader-shell__move-handle" data-window-drag-handle="move"></div>
+        <div class="reader-shell__resize-handle reader-shell__resize-handle--top" data-window-resize-handle="top"></div>
+        <div class="reader-shell__resize-handle reader-shell__resize-handle--right" data-window-resize-handle="right"></div>
+        <div class="reader-shell__resize-handle reader-shell__resize-handle--bottom" data-window-resize-handle="bottom"></div>
+        <div class="reader-shell__resize-handle reader-shell__resize-handle--left" data-window-resize-handle="left"></div>
+        <div class="reader-shell__resize-handle reader-shell__resize-handle--top-left" data-window-resize-handle="top-left"></div>
+        <div class="reader-shell__resize-handle reader-shell__resize-handle--top-right" data-window-resize-handle="top-right"></div>
+        <div class="reader-shell__resize-handle reader-shell__resize-handle--bottom-right" data-window-resize-handle="bottom-right"></div>
+        <div class="reader-shell__resize-handle reader-shell__resize-handle--bottom-left" data-window-resize-handle="bottom-left"></div>
+        <section class="reader-card">
+          <div class="reader-card__body" id="readerViewport">
+            <article class="reader-card__content reader-card__empty" id="readerContent">
+              <div class="reader-empty__title">等待一本书。</div>
+              <div>从托盘菜单打开小说，或把 txt 拖到这里。</div>
+            </article>
+          </div>
+          <div class="reader-progress" id="readerProgress"></div>
+        </section>
+      </div>
+    </div>
     <script type="module" src="/src/app.ts"></script>
   </body>
 </html>
