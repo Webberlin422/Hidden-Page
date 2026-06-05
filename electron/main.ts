@@ -633,16 +633,26 @@ function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle('picker:get-screen-source', async () => {
+  ipcMain.handle('picker:capture-screen', async () => {
     const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
-    const sources = await desktopCapturer.getSources({ types: ['screen'] });
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: { width: display.bounds.width, height: display.bounds.height },
+    });
 
-    // Match the desktopCapturer source to the target display by display_id
     const source = sources.find((s) => s.display_id === String(display.id)) ?? sources[0];
-    if (!source) {
+    if (!source?.thumbnail) {
       throw new Error('No screen source found');
     }
-    return { sourceId: source.id };
+
+    // Resize to native display resolution if needed
+    const image = source.thumbnail;
+    if (image.getSize().width !== display.bounds.width || image.getSize().height !== display.bounds.height) {
+      const resized = image.resize({ width: display.bounds.width, height: display.bounds.height });
+      return { dataUrl: resized.toDataURL(), width: display.bounds.width, height: display.bounds.height };
+    }
+
+    return { dataUrl: image.toDataURL(), width: display.bounds.width, height: display.bounds.height };
   });
 }
 

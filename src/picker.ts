@@ -36,39 +36,24 @@ export async function bootstrapPicker(picker: PickerElements, state: PickerState
   picker.label.textContent = '正在捕获屏幕...';
 
   try {
-    const { sourceId } = await window.hiddenPage.getScreenSource();
+    // Main process captures screen via desktopCapturer thumbnail (NativeImage)
+    // Avoids getUserMedia which may only capture same-app content
+    const { dataUrl, width, height } = await window.hiddenPage.captureScreen();
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: {
-        mandatory: {
-          chromeMediaSource: 'desktop',
-          chromeMediaSourceId: sourceId,
-        },
-      } as any,
-    });
-
-    const video = document.createElement('video');
-    video.srcObject = stream;
-    video.play();
-
-    await new Promise<void>((resolve) => {
-      video.addEventListener('loadeddata', () => resolve(), { once: true });
-    });
+    const image = new Image();
+    image.src = dataUrl;
+    await image.decode();
 
     const canvas = picker.canvas;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = width;
+    canvas.height = height;
 
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) {
       throw new Error('Unable to create 2D context');
     }
 
-    ctx.drawImage(video, 0, 0);
-
-    stream.getTracks().forEach((track) => track.stop());
-    video.srcObject = null;
+    ctx.drawImage(image, 0, 0);
 
     state.canvas = canvas;
     state.context = ctx;
@@ -87,7 +72,6 @@ export async function bootstrapPicker(picker: PickerElements, state: PickerState
       return null;
     }
 
-    // Scale from CSS coords (window size) to canvas pixels (native resolution)
     const rect = state.canvas.getBoundingClientRect();
     const scaleX = state.canvas.width / rect.width;
     const scaleY = state.canvas.height / rect.height;

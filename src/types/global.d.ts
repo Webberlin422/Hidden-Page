@@ -13,7 +13,7 @@ declare global {
       openTextFileAtPath: (filePath: string) => Promise<OpenTextFileResult>;
       loadDocument: (document: OpenTextFileResult) => Promise<OpenTextFileResult | null>;
       openScreenColorPicker: () => Promise<string | null>;
-      getScreenSource: () => Promise<{ sourceId: string }>;
+      captureScreen: () => Promise<{ dataUrl: string; width: number; height: number }>;
       showScreenColorPickerWindow: () => Promise<void>;
       completeScreenColorPick: (color: string | null) => Promise<string | null>;
       getReaderWindowBounds: () => Promise<WindowBoundsResult | null>;
