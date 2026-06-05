@@ -232,31 +232,21 @@ function getRendererUrl(mode: 'reader' | 'settings' | 'picker', params?: Record<
 }
 
 function resolveColorPick(color: string | null): void {
-  // Resolve the promise so settings page gets the color
   if (state.activeColorPickerResolve) {
     state.activeColorPickerResolve(color);
     state.activeColorPickerResolve = null;
   }
 
-  // Hide picker immediately but keep it alive briefly to absorb any
-  // remaining pointer events (lostpointercapture, click, etc.)
-  // so they don't fall through to the app underneath.
-  if (state.colorPickerWindow && !state.colorPickerWindow.isDestroyed()) {
-    state.colorPickerWindow.hide();
+  // Keep picker window alive for a moment to absorb all remaining
+  // pointer events, then close. Never hide settings window — let
+  // alwaysOnTop handle z-order naturally.
+  if (state.colorPickerWindow) {
     setTimeout(() => {
       if (state.colorPickerWindow && !state.colorPickerWindow.isDestroyed()) {
         state.colorPickerWindow.close();
       }
-    }, 150);
+    }, 300);
   }
-
-  // Restore settings window after picker is gone
-  setTimeout(() => {
-    if (state.settingsWindow && !state.settingsWindow.isDestroyed()) {
-      state.settingsWindow.show();
-      state.settingsWindow.focus();
-    }
-  }, 200);
 }
 
 function createColorPickerWindow(): BrowserWindow {
@@ -333,12 +323,6 @@ function openColorPicker(): Promise<string | null> {
       clearTimeout(timeout);
       resolve(color);
     };
-
-    // Hide settings window so it doesn't block the picker
-    if (state.settingsWindow && !state.settingsWindow.isDestroyed()) {
-      state.settingsWindow.hide();
-    }
-
     state.colorPickerWindow = createColorPickerWindow();
   });
 }

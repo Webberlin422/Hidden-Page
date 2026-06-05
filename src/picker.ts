@@ -86,41 +86,45 @@ export async function bootstrapPicker(picker: PickerElements, state: PickerState
     }
   }
 
-  // Track pointer state — pick color on pointerdown, resolve on pointerup,
-  // keeping the window alive until the mouse button is released so events
-  // don't fall through to the app underneath.
+  // On pointerdown: immediately cover the screen with an opaque shield so
+  // the subsequent click event is absorbed by our window, not the app below.
+  // Sample color and resolve on pointerup.
   let pendingHex: string | null = null;
-  let pointerId = -1;
+  let shield: HTMLDivElement | null = null;
+
+  function ensureShield(): HTMLDivElement {
+    if (!shield) {
+      shield = document.createElement('div');
+      shield.style.cssText = 'position:fixed;inset:0;z-index:9;background:#000;cursor:default';
+      shield.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); });
+      shield.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); });
+      shield.addEventListener('pointerup', (e) => { e.preventDefault(); e.stopPropagation(); });
+      shield.addEventListener('contextmenu', (e) => { e.preventDefault(); e.stopPropagation(); });
+      picker.canvas.parentElement!.appendChild(shield);
+    }
+    return shield;
+  }
 
   picker.canvas.addEventListener('pointerdown', (event) => {
     event.preventDefault();
     event.stopPropagation();
 
+    // Right-click → cancel without shield
+    if (event.button === 2) {
+      return;
+    }
+
     pendingHex = sampleColor(event.clientX, event.clientY);
-    pointerId = event.pointerId;
-    picker.canvas.setPointerCapture(pointerId);
+    ensureShield();
   });
 
   picker.canvas.addEventListener('pointerup', async (event) => {
     event.preventDefault();
     event.stopPropagation();
 
-    if (pointerId >= 0) {
-      picker.canvas.releasePointerCapture(pointerId);
-      pointerId = -1;
-    }
-
     if (pendingHex) {
       const hex = pendingHex;
       pendingHex = null;
-
-      // Cover picker with an opaque layer so the window stays alive and
-      // absorbs all remaining events (click, lostpointercapture, etc.)
-      // while the color is being resolved.
-      const shield = document.createElement('div');
-      shield.style.cssText = 'position:fixed;inset:0;z-index:9;background:#000;cursor:default';
-      picker.canvas.parentElement!.appendChild(shield);
-
       await window.hiddenPage.completeScreenColorPick(hex);
     }
   });
