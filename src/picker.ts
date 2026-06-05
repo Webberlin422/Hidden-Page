@@ -86,7 +86,21 @@ export async function bootstrapPicker(picker: PickerElements, state: PickerState
     }
   }
 
+  // Absorb all pointer events so they don't reach windows underneath
+  picker.canvas.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
+
+  picker.canvas.addEventListener('pointerup', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
+
   picker.canvas.addEventListener('mousemove', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
     picker.crosshair.style.left = `${event.clientX}px`;
     picker.crosshair.style.top = `${event.clientY}px`;
 
@@ -98,6 +112,9 @@ export async function bootstrapPicker(picker: PickerElements, state: PickerState
   });
 
   picker.canvas.addEventListener('click', async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
     const hex = sampleColor(event.clientX, event.clientY);
     if (hex) {
       await window.hiddenPage.completeScreenColorPick(hex);
