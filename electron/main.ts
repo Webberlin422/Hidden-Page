@@ -232,6 +232,12 @@ function getRendererUrl(mode: 'reader' | 'settings' | 'picker', params?: Record<
 }
 
 function resolveColorPick(color: string | null): void {
+  // Restore settings window that was hidden when picker opened
+  if (state.settingsWindow && !state.settingsWindow.isDestroyed()) {
+    state.settingsWindow.show();
+    state.settingsWindow.focus();
+  }
+
   if (state.activeColorPickerResolve) {
     state.activeColorPickerResolve(color);
     state.activeColorPickerResolve = null;
@@ -316,6 +322,12 @@ function openColorPicker(): Promise<string | null> {
       clearTimeout(timeout);
       resolve(color);
     };
+
+    // Hide settings window so it doesn't block the picker
+    if (state.settingsWindow && !state.settingsWindow.isDestroyed()) {
+      state.settingsWindow.hide();
+    }
+
     state.colorPickerWindow = createColorPickerWindow();
   });
 }
