@@ -55,7 +55,8 @@ const state = {
 };
 
 const pickerState: PickerState = {
-  tiles: [],
+  canvas: null,
+  context: null,
   cursorColor: '#000000',
 };
 
@@ -109,7 +110,7 @@ const settingsElements =
 const pickerElements =
   state.mode === 'picker'
     ? ({
-        shell: queryRequired<HTMLElement>('#pickerShell'),
+        canvas: queryRequired<HTMLCanvasElement>('#pickerCanvas'),
         crosshair: queryRequired<HTMLElement>('#pickerCrosshair'),
         label: queryRequired<HTMLElement>('#pickerLabel'),
         color: queryRequired<HTMLElement>('#pickerColor'),

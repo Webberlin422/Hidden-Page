@@ -21,8 +21,7 @@ contextBridge.exposeInMainWorld('hiddenPage', {
   openTextFileAtPath: (filePath: string): Promise<OpenTextFileResult> => ipcRenderer.invoke('reader:open-text-file-path', filePath),
   loadDocument: (document: OpenTextFileResult): Promise<OpenTextFileResult | null> => ipcRenderer.invoke('reader:load-document', document),
   openScreenColorPicker: (): Promise<string | null> => ipcRenderer.invoke('settings:open-screen-color-picker'),
-  getScreenSources: (): Promise<Array<{ sourceId: string; bounds: { x: number; y: number; width: number; height: number } }>> =>
-    ipcRenderer.invoke('picker:get-screen-sources'),
+  getScreenSource: (): Promise<{ sourceId: string }> => ipcRenderer.invoke('picker:get-screen-source'),
   showScreenColorPickerWindow: (): Promise<void> => ipcRenderer.invoke('picker:show-window'),
   completeScreenColorPick: (color: string | null): Promise<string | null> => ipcRenderer.invoke('picker:complete-color-pick', color),
   onDocumentLoaded: (handler: DocumentLoadedHandler): void => {

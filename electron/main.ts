@@ -243,25 +243,14 @@ function resolveColorPick(color: string | null): void {
 }
 
 function createColorPickerWindow(): BrowserWindow {
-  // Span all displays so the user can pick from any monitor
-  const displays = screen.getAllDisplays();
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-
-  for (const d of displays) {
-    minX = Math.min(minX, d.bounds.x);
-    minY = Math.min(minY, d.bounds.y);
-    maxX = Math.max(maxX, d.bounds.x + d.bounds.width);
-    maxY = Math.max(maxY, d.bounds.y + d.bounds.height);
-  }
+  const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  const { bounds } = display;
 
   const window = new BrowserWindow({
-    x: minX,
-    y: minY,
-    width: maxX - minX,
-    height: maxY - minY,
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
     backgroundColor: '#00000000',
     show: false,
     frame: false,
@@ -632,18 +621,16 @@ function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle('picker:get-screen-sources', async () => {
-    const displays = screen.getAllDisplays();
+  ipcMain.handle('picker:get-screen-source', async () => {
+    const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
     const sources = await desktopCapturer.getSources({ types: ['screen'] });
 
-    // Match desktopCapturer sources to displays by display_id
-    return displays.map((d) => {
-      const source = sources.find((s) => s.display_id === String(d.id)) ?? sources[0];
-      return {
-        sourceId: source.id,
-        bounds: d.bounds,
-      };
-    });
+    // Match the desktopCapturer source to the target display by display_id
+    const source = sources.find((s) => s.display_id === String(display.id)) ?? sources[0];
+    if (!source) {
+      throw new Error('No screen source found');
+    }
+    return { sourceId: source.id };
   });
 }
 
