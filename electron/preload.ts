@@ -3,8 +3,6 @@ import { defaultShortcutConfig } from './shortcuts';
 import type {
   ShortcutConfig,
   OpenTextFileResult,
-  ScreenThumbnailResult,
-  PixelSampleResult,
   WindowBoundsResult,
   ReaderSettings,
   DocumentLoadedHandler,
@@ -13,8 +11,6 @@ import type {
 export type {
   ShortcutConfig,
   OpenTextFileResult,
-  ScreenThumbnailResult,
-  PixelSampleResult,
   WindowBoundsResult,
   ReaderSettings,
   DocumentLoadedHandler,
@@ -24,13 +20,10 @@ contextBridge.exposeInMainWorld('hiddenPage', {
   openTextFile: (): Promise<OpenTextFileResult | null> => ipcRenderer.invoke('reader:open-text-file'),
   openTextFileAtPath: (filePath: string): Promise<OpenTextFileResult> => ipcRenderer.invoke('reader:open-text-file-path', filePath),
   loadDocument: (document: OpenTextFileResult): Promise<OpenTextFileResult | null> => ipcRenderer.invoke('reader:load-document', document),
-  openScreenColorPicker: (mode: 'fontColor' | 'backgroundColor'): Promise<string | null> =>
-    ipcRenderer.invoke('settings:open-screen-color-picker', mode),
+  openScreenColorPicker: (): Promise<string | null> => ipcRenderer.invoke('settings:open-screen-color-picker'),
+  getScreenSources: (): Promise<Array<{ sourceId: string; bounds: { x: number; y: number; width: number; height: number } }>> =>
+    ipcRenderer.invoke('picker:get-screen-sources'),
   showScreenColorPickerWindow: (): Promise<void> => ipcRenderer.invoke('picker:show-window'),
-  captureDisplayThumbnail: (displayId: string): Promise<ScreenThumbnailResult> =>
-    ipcRenderer.invoke('picker:capture-display-thumbnail', displayId),
-  samplePixelColor: (pixelX: number, pixelY: number): Promise<PixelSampleResult> =>
-    ipcRenderer.invoke('picker:sample-pixel-color', pixelX, pixelY),
   completeScreenColorPick: (color: string | null): Promise<string | null> => ipcRenderer.invoke('picker:complete-color-pick', color),
   onDocumentLoaded: (handler: DocumentLoadedHandler): void => {
     ipcRenderer.on('reader:document-loaded', (_event, document: OpenTextFileResult) => handler(document));

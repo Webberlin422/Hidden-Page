@@ -9,7 +9,7 @@ import {
   type ShortcutConfig,
 } from './utils/shortcut';
 import type { ReaderSettings, WindowBoundsResult } from './types/shared';
-import { bootstrapPicker, type PickerState } from './picker';
+import { bootstrapPicker, type PickerState, type PickerElements } from './picker';
 
 interface ReaderDocument {
   path: string;
@@ -55,17 +55,7 @@ const state = {
 };
 
 const pickerState: PickerState = {
-  displayId: appUrl.searchParams.get('displayId') ?? '',
-  field: appUrl.searchParams.get('field') === 'backgroundColor' ? 'backgroundColor' : 'fontColor',
-  image: null,
-  canvas: null,
-  context: null,
-  magnifierCanvas: null,
-  magnifierContext: null,
-  imageWidth: 0,
-  imageHeight: 0,
-  cursorX: 0,
-  cursorY: 0,
+  tiles: [],
   cursorColor: '#000000',
 };
 
@@ -118,18 +108,13 @@ const settingsElements =
 
 const pickerElements =
   state.mode === 'picker'
-    ? {
-        image: queryRequired<HTMLImageElement>('#pickerImage'),
-        reticle: queryRequired<HTMLElement>('#pickerReticle'),
-        crosshairHorizontal: queryRequired<HTMLElement>('#pickerCrosshairHorizontal'),
-        crosshairVertical: queryRequired<HTMLElement>('#pickerCrosshairVertical'),
+    ? ({
+        shell: queryRequired<HTMLElement>('#pickerShell'),
+        crosshair: queryRequired<HTMLElement>('#pickerCrosshair'),
         label: queryRequired<HTMLElement>('#pickerLabel'),
-        hex: queryRequired<HTMLElement>('#pickerHex'),
-        magnifier: queryRequired<HTMLElement>('#pickerMagnifier'),
-        magnifierCanvas: queryRequired<HTMLCanvasElement>('#pickerMagnifierCanvas'),
-        magnifierColor: queryRequired<HTMLElement>('#pickerMagnifierColor'),
+        color: queryRequired<HTMLElement>('#pickerColor'),
         cancelButton: queryRequired<HTMLButtonElement>('#pickerCancelButton'),
-      }
+      } satisfies PickerElements)
     : null;
 
 let progressSaveTimer: number | null = null;
@@ -261,7 +246,7 @@ async function pickColor(field: ColorField): Promise<void> {
 
   try {
     setSettingsStatus('请在屏幕上点选颜色。');
-    const pickedColor = await window.hiddenPage.openScreenColorPicker(field);
+    const pickedColor = await window.hiddenPage.openScreenColorPicker();
 
     if (!pickedColor) {
       setSettingsStatus('已取消取色。');

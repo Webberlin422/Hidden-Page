@@ -19,16 +19,6 @@ export interface OpenTextFileResult {
 
 export type DocumentLoadedHandler = (document: OpenTextFileResult) => void;
 
-export interface ScreenThumbnailResult {
-  dataUrl: string;
-  width: number;
-  height: number;
-}
-
-export interface PixelSampleResult {
-  hex: string | null;
-}
-
 export interface WindowBoundsResult {
   x: number;
   y: number;

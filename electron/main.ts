@@ -1,17 +1,10 @@
-import { app, BrowserWindow, Menu, Tray, dialog, ipcMain, nativeImage, screen, session, shell, globalShortcut } from 'electron';
+import { app, BrowserWindow, Menu, Tray, desktopCapturer, dialog, ipcMain, nativeImage, screen, session, shell, globalShortcut } from 'electron';
 import { existsSync, promises as fs, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { defaultShortcutConfig, isLegacyShortcutConfig, registerGlobalShortcuts, type ShortcutConfig } from './shortcuts';
-import type { ReaderSettings, ScreenThumbnailResult, PixelSampleResult } from './types';
-import { PNG } from 'pngjs';
-import { state, type ColorPickMode } from './state';
-
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const screenshotDesktop = require('screenshot-desktop') as {
-  (options?: { screen?: string; format?: 'png' | 'jpg' | 'jpeg' | 'bmp' }): Promise<Buffer>;
-  listDisplays?: () => Promise<Array<{ id: string; name?: string }>>;
-};
+import type { ReaderSettings } from './types';
+import { state } from './state';
 
 function getShortcutConfigPath(): string {
   return path.join(app.getPath('userData'), 'shortcut-config.json');
@@ -239,8 +232,6 @@ function getRendererUrl(mode: 'reader' | 'settings' | 'picker', params?: Record<
 }
 
 function resolveColorPick(color: string | null): void {
-  state.latestPickerPng = null;
-
   if (state.activeColorPickerResolve) {
     state.activeColorPickerResolve(color);
     state.activeColorPickerResolve = null;
@@ -251,28 +242,36 @@ function resolveColorPick(color: string | null): void {
   }
 }
 
-function createColorPickerWindow(mode: ColorPickMode): BrowserWindow {
-  const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
-  const { bounds } = display;
+function createColorPickerWindow(): BrowserWindow {
+  // Span all displays so the user can pick from any monitor
+  const displays = screen.getAllDisplays();
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const d of displays) {
+    minX = Math.min(minX, d.bounds.x);
+    minY = Math.min(minY, d.bounds.y);
+    maxX = Math.max(maxX, d.bounds.x + d.bounds.width);
+    maxY = Math.max(maxY, d.bounds.y + d.bounds.height);
+  }
 
   const window = new BrowserWindow({
-    x: bounds.x,
-    y: bounds.y,
-    width: bounds.width,
-    height: bounds.height,
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
     backgroundColor: '#00000000',
     show: false,
     frame: false,
     transparent: true,
     resizable: false,
     movable: false,
-    fullscreen: false,
-    fullscreenable: false,
     skipTaskbar: true,
     alwaysOnTop: true,
     hasShadow: false,
     title: 'HiddenPage Color Picker',
-    icon: createAppIcon(),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -288,7 +287,7 @@ function createColorPickerWindow(mode: ColorPickMode): BrowserWindow {
     window.show();
     window.focus();
   });
-  window.loadURL(getRendererUrl('picker', { displayId: String(display.id), field: mode })).catch((error) => {
+  window.loadURL(getRendererUrl('picker')).catch((error) => {
     console.error('Failed to load color picker window:', error);
   });
 
@@ -302,56 +301,34 @@ function createColorPickerWindow(mode: ColorPickMode): BrowserWindow {
   return window;
 }
 
-async function captureScreenThumbnail(displayId: string): Promise<ScreenThumbnailResult> {
-  let screenshotOptions: { screen?: string; format: 'png' } = { format: 'png' };
+function openColorPicker(): Promise<string | null> {
+  if (state.colorPickerWindow && !state.colorPickerWindow.isDestroyed()) {
+    state.colorPickerWindow.close();
+  }
 
-  if (displayId && screenshotDesktop.listDisplays) {
-    try {
-      const displays = await screenshotDesktop.listDisplays();
-      const selectedDisplay = displays.find((display) => display.id === displayId) ?? displays[0];
+  if (state.activeColorPickerResolve) {
+    const stale = state.activeColorPickerResolve;
+    state.activeColorPickerResolve = null;
+    stale(null);
+  }
 
-      if (selectedDisplay) {
-        screenshotOptions = { format: 'png', screen: selectedDisplay.id };
+  return new Promise<string | null>((resolve) => {
+    const timeout = setTimeout(() => {
+      if (state.activeColorPickerResolve) {
+        state.activeColorPickerResolve = null;
+        resolve(null);
+        if (state.colorPickerWindow && !state.colorPickerWindow.isDestroyed()) {
+          state.colorPickerWindow.close();
+        }
       }
-    } catch (error) {
-      console.error('Failed to list displays for screenshot-desktop:', error);
-    }
-  }
+    }, 120_000);
 
-  const buffer = await screenshotDesktop(screenshotOptions);
-  state.latestPickerPng = PNG.sync.read(buffer);
-  const image = nativeImage.createFromBuffer(buffer);
-
-  if (image.isEmpty()) {
-    throw new Error('Screenshot image is empty');
-  }
-
-  return {
-    dataUrl: image.toDataURL(),
-    width: image.getSize().width,
-    height: image.getSize().height,
-  };
-}
-
-function samplePixelColor(pixelX: number, pixelY: number): PixelSampleResult {
-  if (!state.latestPickerPng) {
-    return { hex: null };
-  }
-
-  const x = Math.max(0, Math.min(state.latestPickerPng.width - 1, Math.floor(pixelX)));
-  const y = Math.max(0, Math.min(state.latestPickerPng.height - 1, Math.floor(pixelY)));
-  const index = (state.latestPickerPng.width * y + x) * 4;
-  const red = state.latestPickerPng.data[index];
-  const green = state.latestPickerPng.data[index + 1];
-  const blue = state.latestPickerPng.data[index + 2];
-  const alpha = state.latestPickerPng.data[index + 3];
-
-  if (alpha === 0) {
-    return { hex: null };
-  }
-
-  const hex = `#${[red, green, blue].map((value) => value.toString(16).padStart(2, '0')).join('')}`;
-  return { hex };
+    state.activeColorPickerResolve = (color: string | null) => {
+      clearTimeout(timeout);
+      resolve(color);
+    };
+    state.colorPickerWindow = createColorPickerWindow();
+  });
 }
 
 function createWindow(mode: 'reader' | 'settings', autoShow = true): BrowserWindow {
@@ -448,37 +425,6 @@ function createWindow(mode: 'reader' | 'settings', autoShow = true): BrowserWind
   });
 
   return window;
-}
-
-function openColorPicker(mode: ColorPickMode): Promise<string | null> {
-  if (state.colorPickerWindow && !state.colorPickerWindow.isDestroyed()) {
-    state.colorPickerWindow.close();
-  }
-
-  // Resolve any stale pending promise so it doesn't hang forever
-  if (state.activeColorPickerResolve) {
-    const stale = state.activeColorPickerResolve;
-    state.activeColorPickerResolve = null;
-    stale(null);
-  }
-
-  return new Promise<string | null>((resolve) => {
-    const timeout = setTimeout(() => {
-      if (state.activeColorPickerResolve) {
-        state.activeColorPickerResolve = null;
-        resolve(null);
-        if (state.colorPickerWindow && !state.colorPickerWindow.isDestroyed()) {
-          state.colorPickerWindow.close();
-        }
-      }
-    }, 120_000);
-
-    state.activeColorPickerResolve = (color: string | null) => {
-      clearTimeout(timeout);
-      resolve(color);
-    };
-    state.colorPickerWindow = createColorPickerWindow(mode);
-  });
 }
 
 function showReaderWindow(): void {
@@ -670,8 +616,8 @@ function registerIpcHandlers(): void {
     return targetWindow.getBounds();
   });
 
-  ipcMain.handle('settings:open-screen-color-picker', async (_event, mode: ColorPickMode) => {
-    return openColorPicker(mode);
+  ipcMain.handle('settings:open-screen-color-picker', async () => {
+    return openColorPicker();
   });
 
   ipcMain.handle('picker:complete-color-pick', async (_event, color: string | null) => {
@@ -686,12 +632,18 @@ function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle('picker:capture-display-thumbnail', async (_event, displayId: string) => {
-    return captureScreenThumbnail(displayId);
-  });
+  ipcMain.handle('picker:get-screen-sources', async () => {
+    const displays = screen.getAllDisplays();
+    const sources = await desktopCapturer.getSources({ types: ['screen'] });
 
-  ipcMain.handle('picker:sample-pixel-color', async (_event, pixelX: number, pixelY: number) => {
-    return samplePixelColor(pixelX, pixelY);
+    // Match desktopCapturer sources to displays by display_id
+    return displays.map((d) => {
+      const source = sources.find((s) => s.display_id === String(d.id)) ?? sources[0];
+      return {
+        sourceId: source.id,
+        bounds: d.bounds,
+      };
+    });
   });
 }
 

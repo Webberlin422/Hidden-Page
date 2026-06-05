@@ -1,46 +1,26 @@
-type ColorField = 'fontColor' | 'backgroundColor';
-
-export type PickerState = {
-  displayId: string;
-  field: ColorField;
-  image: HTMLImageElement | null;
-  canvas: HTMLCanvasElement | null;
+interface ScreenTile {
+  canvas: HTMLCanvasElement;
+  bounds: { x: number; y: number; width: number; height: number };
   context: CanvasRenderingContext2D | null;
-  magnifierCanvas: HTMLCanvasElement | null;
-  magnifierContext: CanvasRenderingContext2D | null;
-  imageWidth: number;
-  imageHeight: number;
-  cursorX: number;
-  cursorY: number;
+}
+
+export interface PickerState {
+  tiles: ScreenTile[];
   cursorColor: string;
-};
+}
 
-export type PickerElements = {
-  image: HTMLImageElement;
-  crosshairHorizontal: HTMLElement;
-  crosshairVertical: HTMLElement;
-  reticle: HTMLElement;
-  magnifier: HTMLElement;
-  magnifierCanvas: HTMLCanvasElement;
-  magnifierColor: HTMLElement;
+export interface PickerElements {
+  shell: HTMLElement;
+  crosshair: HTMLElement;
   label: HTMLElement;
-  hex: HTMLElement;
+  color: HTMLElement;
   cancelButton: HTMLButtonElement;
-};
+}
 
-export async function bootstrapPicker(picker: PickerElements, pickerState: PickerState): Promise<void> {
+export async function bootstrapPicker(picker: PickerElements, state: PickerState): Promise<void> {
   const cancelPicker = async (): Promise<void> => {
     await window.hiddenPage.completeScreenColorPick(null);
   };
-
-  picker.image.addEventListener('contextmenu', async (event) => {
-    event.preventDefault();
-    await cancelPicker();
-  });
-
-  picker.cancelButton.addEventListener('click', async () => {
-    await cancelPicker();
-  });
 
   window.addEventListener('keydown', async (event) => {
     if (event.key === 'Escape') {
@@ -49,163 +29,143 @@ export async function bootstrapPicker(picker: PickerElements, pickerState: Picke
     }
   });
 
-  picker.label.textContent = pickerState.field === 'fontColor' ? '点击屏幕任意位置取字体颜色' : '点击屏幕任意位置取背景颜色';
-  picker.hex.textContent = '正在准备屏幕图像...';
-  picker.image.classList.add('picker-shell__image--loading');
+  picker.cancelButton.addEventListener('click', async () => {
+    await cancelPicker();
+  });
+
+  picker.label.textContent = '正在捕获屏幕...';
 
   try {
-    const capture = await window.hiddenPage.captureDisplayThumbnail(pickerState.displayId);
-    const image = new Image();
-    image.src = capture.dataUrl;
-    await image.decode();
-
-    pickerState.image = image;
-    pickerState.imageWidth = capture.width;
-    pickerState.imageHeight = capture.height;
-    pickerState.canvas = document.createElement('canvas');
-    pickerState.canvas.width = Math.max(1, image.naturalWidth);
-    pickerState.canvas.height = Math.max(1, image.naturalHeight);
-    pickerState.context = pickerState.canvas.getContext('2d', { willReadFrequently: true });
-    pickerState.magnifierCanvas = picker.magnifierCanvas;
-    pickerState.magnifierContext = picker.magnifierCanvas.getContext('2d', { willReadFrequently: true });
-
-    if (!pickerState.context || !pickerState.magnifierContext || !pickerState.magnifierCanvas) {
-      throw new Error('Unable to create 2D context');
+    const screenInfos = await window.hiddenPage.getScreenSources();
+    if (screenInfos.length === 0) {
+      throw new Error('No screen sources found');
     }
 
-    pickerState.context.imageSmoothingEnabled = false;
-    pickerState.context.clearRect(0, 0, pickerState.canvas.width, pickerState.canvas.height);
-    pickerState.context.drawImage(image, 0, 0);
+    // Calculate the global offset (top-left of the bounding rect of all displays)
+    let originX = Infinity;
+    let originY = Infinity;
+    for (const info of screenInfos) {
+      originX = Math.min(originX, info.bounds.x);
+      originY = Math.min(originY, info.bounds.y);
+    }
 
-    picker.image.src = capture.dataUrl;
-    picker.image.classList.remove('picker-shell__image--loading');
-    picker.hex.textContent = '单击选择颜色，Esc 或右键取消';
-    renderPickerMagnifier(0, 0);
+    const tiles: ScreenTile[] = [];
+
+    for (const info of screenInfos) {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          mandatory: {
+            chromeMediaSource: 'desktop',
+            chromeMediaSourceId: info.sourceId,
+          },
+        } as any,
+      });
+
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.play();
+
+      await new Promise<void>((resolve) => {
+        video.addEventListener('loadeddata', () => resolve(), { once: true });
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (ctx) {
+        ctx.drawImage(video, 0, 0);
+      }
+
+      stream.getTracks().forEach((track) => track.stop());
+      video.srcObject = null;
+
+      // Position canvas at display bounds relative to global origin
+      canvas.style.position = 'absolute';
+      canvas.style.left = `${info.bounds.x - originX}px`;
+      canvas.style.top = `${info.bounds.y - originY}px`;
+      canvas.style.width = `${info.bounds.width}px`;
+      canvas.style.height = `${info.bounds.height}px`;
+      canvas.style.display = 'block';
+
+      picker.shell.appendChild(canvas);
+
+      tiles.push({
+        canvas,
+        bounds: info.bounds,
+        context: ctx,
+      });
+    }
+
+    state.tiles = tiles;
+
+    picker.label.textContent = '点击屏幕任意位置取色';
 
     await window.hiddenPage.showScreenColorPickerWindow();
   } catch (error) {
-    console.error('Failed to prepare screen picker:', error);
-    picker.hex.textContent = '无法获取屏幕图像';
+    console.error('Failed to capture screen:', error);
+    picker.label.textContent = '无法捕获屏幕图像';
     return;
   }
 
-  function renderPickerMagnifier(offsetX: number, offsetY: number): void {
-    if (!pickerState.image || !pickerState.magnifierCanvas || !pickerState.magnifierContext) {
-      return;
+  function findTile(clientX: number, clientY: number): { tile: ScreenTile; localX: number; localY: number } | null {
+    for (const tile of state.tiles) {
+      const { x, y, width, height } = tile.bounds;
+      if (clientX >= x && clientX < x + width && clientY >= y && clientY < y + height) {
+        const scaleX = (tile.canvas.width || 1) / width;
+        const scaleY = (tile.canvas.height || 1) / height;
+        return {
+          tile,
+          localX: Math.floor((clientX - x) * scaleX),
+          localY: Math.floor((clientY - y) * scaleY),
+        };
+      }
     }
-
-    const image = pickerState.image;
-    const canvas = pickerState.magnifierCanvas;
-    const context = pickerState.magnifierContext;
-    const sourceSize = 26;
-    const rect = picker.image.getBoundingClientRect();
-    const scaleX = image.naturalWidth / rect.width;
-    const scaleY = image.naturalHeight / rect.height;
-    const imageX = Math.max(0, Math.min(image.naturalWidth - sourceSize, Math.floor(offsetX * scaleX - sourceSize / 2)));
-    const imageY = Math.max(0, Math.min(image.naturalHeight - sourceSize, Math.floor(offsetY * scaleY - sourceSize / 2)));
-
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    context.imageSmoothingEnabled = false;
-    context.drawImage(image, imageX, imageY, sourceSize, sourceSize, 0, 0, canvas.width, canvas.height);
-
-    const magnifier = picker.magnifier;
-    const windowWidth = window.innerWidth;
-    const windowHeight = window.innerHeight;
-    const magnifierWidth = 220;
-    const magnifierHeight = 220;
-    let left = offsetX + 28;
-    let top = offsetY + 28;
-
-    if (left + magnifierWidth > windowWidth) {
-      left = offsetX - magnifierWidth - 28;
-    }
-    if (top + magnifierHeight > windowHeight) {
-      top = offsetY - magnifierHeight - 28;
-    }
-
-    left = Math.min(windowWidth - magnifierWidth - 12, Math.max(12, left));
-    top = Math.min(windowHeight - magnifierHeight - 12, Math.max(12, top));
-
-    magnifier.style.transform = `translate(${left}px, ${top}px)`;
-    magnifier.style.setProperty('--magnifier-color', pickerState.cursorColor);
+    return null;
   }
 
-  async function updatePointer(event: PointerEvent | MouseEvent): Promise<void> {
-    if (
-      !pickerState.image ||
-      !pickerState.canvas ||
-      !pickerState.context ||
-      !pickerState.magnifierCanvas ||
-      !pickerState.magnifierContext
-    ) {
-      return;
+  function sampleColorAt(clientX: number, clientY: number): string | null {
+    const found = findTile(clientX, clientY);
+    if (!found || !found.tile.context) {
+      return null;
     }
-
-    const rect = picker.image.getBoundingClientRect();
-    const offsetX = Math.min(rect.width, Math.max(0, event.clientX - rect.left));
-    const offsetY = Math.min(rect.height, Math.max(0, event.clientY - rect.top));
-    pickerState.cursorX = offsetX;
-    pickerState.cursorY = offsetY;
-    picker.crosshairHorizontal.style.top = `${Math.round(offsetY)}px`;
-    picker.crosshairVertical.style.left = `${Math.round(offsetX)}px`;
-    picker.reticle.style.left = `${Math.round(offsetX - 14)}px`;
-    picker.reticle.style.top = `${Math.round(offsetY - 14)}px`;
-
-    const sampleX = Math.min(
-      Math.max(0, Math.floor((offsetX / Math.max(1, rect.width)) * Math.max(1, pickerState.imageWidth))),
-      Math.max(0, pickerState.imageWidth - 1),
-    );
-    const sampleY = Math.min(
-      Math.max(0, Math.floor((offsetY / Math.max(1, rect.height)) * Math.max(1, pickerState.imageHeight))),
-      Math.max(0, pickerState.imageHeight - 1),
-    );
 
     try {
-      const sampled = await window.hiddenPage.samplePixelColor(sampleX, sampleY);
-      if (sampled.hex) {
-        pickerState.cursorColor = sampled.hex;
-        picker.hex.textContent = sampled.hex.toUpperCase();
-        picker.magnifierColor.textContent = sampled.hex.toUpperCase();
-      }
-    } catch (error) {
-      console.error('Failed to sample pixel color:', error);
+      const [r, g, b] = found.tile.context.getImageData(found.localX, found.localY, 1, 1).data;
+      return `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+    } catch {
+      return null;
     }
-
-    renderPickerMagnifier(offsetX, offsetY);
   }
 
-  picker.image.addEventListener('pointermove', (event) => {
-    void updatePointer(event);
+  // Compute origin for converting screen coords to window-local coords
+  const originX = state.tiles.reduce((min, t) => Math.min(min, t.bounds.x), Infinity);
+  const originY = state.tiles.reduce((min, t) => Math.min(min, t.bounds.y), Infinity);
+
+  window.addEventListener('mousemove', (event) => {
+    // Crosshair uses window-local coords (relative to viewport)
+    picker.crosshair.style.left = `${event.screenX - originX}px`;
+    picker.crosshair.style.top = `${event.screenY - originY}px`;
+
+    const hex = sampleColorAt(event.screenX, event.screenY);
+    if (hex) {
+      state.cursorColor = hex;
+      picker.color.textContent = hex.toUpperCase();
+    }
   });
 
-  picker.image.addEventListener('pointerenter', (event) => {
-    void updatePointer(event);
+  window.addEventListener('click', async (event) => {
+    const hex = sampleColorAt(event.screenX, event.screenY);
+    if (hex) {
+      await window.hiddenPage.completeScreenColorPick(hex);
+    } else {
+      await cancelPicker();
+    }
   });
 
-  picker.image.addEventListener('click', async (event) => {
-    if (!pickerState.image || !pickerState.canvas || !pickerState.context) {
-      return;
-    }
-
-    const rect = picker.image.getBoundingClientRect();
-    const offsetX = Math.min(rect.width, Math.max(0, event.clientX - rect.left));
-    const offsetY = Math.min(rect.height, Math.max(0, event.clientY - rect.top));
-    const sampleX = Math.min(
-      Math.max(0, Math.floor((offsetX / Math.max(1, rect.width)) * Math.max(1, pickerState.imageWidth))),
-      Math.max(0, pickerState.imageWidth - 1),
-    );
-    const sampleY = Math.min(
-      Math.max(0, Math.floor((offsetY / Math.max(1, rect.height)) * Math.max(1, pickerState.imageHeight))),
-      Math.max(0, pickerState.imageHeight - 1),
-    );
-
-    const sampled = await window.hiddenPage.samplePixelColor(sampleX, sampleY);
-    if (!sampled.hex) {
-      picker.hex.textContent = '未能识别该像素';
-      return;
-    }
-
-    picker.hex.textContent = sampled.hex.toUpperCase();
-    await window.hiddenPage.completeScreenColorPick(sampled.hex);
+  window.addEventListener('contextmenu', async (event) => {
+    event.preventDefault();
+    await cancelPicker();
   });
 }

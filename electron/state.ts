@@ -1,9 +1,6 @@
 import type { BrowserWindow, Tray } from 'electron';
-import type { PNG } from 'pngjs';
 import type { ShortcutConfig } from './types';
 import { defaultShortcutConfig } from './shortcuts';
-
-export type ColorPickMode = 'fontColor' | 'backgroundColor';
 
 export const state = {
   readerWindow: null as BrowserWindow | null,
@@ -14,6 +11,5 @@ export const state = {
   shortcutConfig: { ...defaultShortcutConfig } as ShortcutConfig,
   globalShortcutEnabled: true,
   activeColorPickerResolve: null as ((color: string | null) => void) | null,
-  latestPickerPng: null as PNG | null,
   readerBoundsSaveTimer: null as ReturnType<typeof setTimeout> | null,
 };

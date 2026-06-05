@@ -3,12 +3,8 @@ import type {
   OpenTextFileResult,
   ReaderSettings,
   ShortcutConfig,
-  ScreenThumbnailResult,
-  PixelSampleResult,
   WindowBoundsResult,
 } from './shared';
-
-type ColorPickerMode = 'fontColor' | 'backgroundColor';
 
 declare global {
   interface Window {
@@ -16,10 +12,9 @@ declare global {
       openTextFile: () => Promise<OpenTextFileResult | null>;
       openTextFileAtPath: (filePath: string) => Promise<OpenTextFileResult>;
       loadDocument: (document: OpenTextFileResult) => Promise<OpenTextFileResult | null>;
-      openScreenColorPicker: (mode: ColorPickerMode) => Promise<string | null>;
+      openScreenColorPicker: () => Promise<string | null>;
+      getScreenSources: () => Promise<Array<{ sourceId: string; bounds: { x: number; y: number; width: number; height: number } }>>;
       showScreenColorPickerWindow: () => Promise<void>;
-      captureDisplayThumbnail: (displayId: string) => Promise<ScreenThumbnailResult>;
-      samplePixelColor: (pixelX: number, pixelY: number) => Promise<PixelSampleResult>;
       completeScreenColorPick: (color: string | null) => Promise<string | null>;
       getReaderWindowBounds: () => Promise<WindowBoundsResult | null>;
       setReaderWindowBounds: (bounds: WindowBoundsResult) => Promise<WindowBoundsResult | null>;
