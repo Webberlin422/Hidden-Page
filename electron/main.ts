@@ -232,25 +232,31 @@ function getRendererUrl(mode: 'reader' | 'settings' | 'picker', params?: Record<
 }
 
 function resolveColorPick(color: string | null): void {
-  // Resolve the promise first so settings page gets the color
+  // Resolve the promise so settings page gets the color
   if (state.activeColorPickerResolve) {
     state.activeColorPickerResolve(color);
     state.activeColorPickerResolve = null;
   }
 
-  // Close picker immediately to absorb the click event
+  // Hide picker immediately but keep it alive briefly to absorb any
+  // remaining pointer events (lostpointercapture, click, etc.)
+  // so they don't fall through to the app underneath.
   if (state.colorPickerWindow && !state.colorPickerWindow.isDestroyed()) {
-    state.colorPickerWindow.close();
+    state.colorPickerWindow.hide();
+    setTimeout(() => {
+      if (state.colorPickerWindow && !state.colorPickerWindow.isDestroyed()) {
+        state.colorPickerWindow.close();
+      }
+    }, 150);
   }
 
-  // Restore settings window after a short delay, otherwise the
-  // click that dismissed the picker would land on the app underneath
+  // Restore settings window after picker is gone
   setTimeout(() => {
     if (state.settingsWindow && !state.settingsWindow.isDestroyed()) {
       state.settingsWindow.show();
       state.settingsWindow.focus();
     }
-  }, 100);
+  }, 200);
 }
 
 function createColorPickerWindow(): BrowserWindow {

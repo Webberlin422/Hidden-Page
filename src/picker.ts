@@ -86,15 +86,35 @@ export async function bootstrapPicker(picker: PickerElements, state: PickerState
     }
   }
 
-  // Absorb all pointer events so they don't reach windows underneath
+  // Track pointer state — pick color on pointerdown, resolve on pointerup,
+  // keeping the window alive until the mouse button is released so events
+  // don't fall through to the app underneath.
+  let pendingHex: string | null = null;
+  let pointerId = -1;
+
   picker.canvas.addEventListener('pointerdown', (event) => {
     event.preventDefault();
     event.stopPropagation();
+
+    pendingHex = sampleColor(event.clientX, event.clientY);
+    pointerId = event.pointerId;
+    picker.canvas.setPointerCapture(pointerId);
   });
 
-  picker.canvas.addEventListener('pointerup', (event) => {
+  picker.canvas.addEventListener('pointerup', async (event) => {
     event.preventDefault();
     event.stopPropagation();
+
+    if (pointerId >= 0) {
+      picker.canvas.releasePointerCapture(pointerId);
+      pointerId = -1;
+    }
+
+    if (pendingHex) {
+      const hex = pendingHex;
+      pendingHex = null;
+      await window.hiddenPage.completeScreenColorPick(hex);
+    }
   });
 
   picker.canvas.addEventListener('mousemove', (event) => {
@@ -108,18 +128,6 @@ export async function bootstrapPicker(picker: PickerElements, state: PickerState
     if (hex) {
       state.cursorColor = hex;
       picker.color.textContent = hex.toUpperCase();
-    }
-  });
-
-  picker.canvas.addEventListener('click', async (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const hex = sampleColor(event.clientX, event.clientY);
-    if (hex) {
-      await window.hiddenPage.completeScreenColorPick(hex);
-    } else {
-      await cancelPicker();
     }
   });
 }
