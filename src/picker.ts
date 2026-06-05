@@ -113,6 +113,14 @@ export async function bootstrapPicker(picker: PickerElements, state: PickerState
     if (pendingHex) {
       const hex = pendingHex;
       pendingHex = null;
+
+      // Cover picker with an opaque layer so the window stays alive and
+      // absorbs all remaining events (click, lostpointercapture, etc.)
+      // while the color is being resolved.
+      const shield = document.createElement('div');
+      shield.style.cssText = 'position:fixed;inset:0;z-index:9;background:#000;cursor:default';
+      picker.canvas.parentElement!.appendChild(shield);
+
       await window.hiddenPage.completeScreenColorPick(hex);
     }
   });
