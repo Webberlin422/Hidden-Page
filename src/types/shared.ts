@@ -9,6 +9,8 @@ export interface ReaderSettings {
   lineHeight: number;
   fontColor: string;
   backgroundColor: string;
+  fontFamily: string;
+  fontWeight: number;
 }
 
 export interface OpenTextFileResult {

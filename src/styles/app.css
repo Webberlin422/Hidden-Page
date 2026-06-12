@@ -254,6 +254,7 @@ button {
   padding: 0;
   font-family: var(--font-reader);
   font-size: 20px;
+  font-weight: 400;
   line-height: 1.85;
   letter-spacing: 0.01em;
   white-space: pre-wrap;
@@ -487,7 +488,6 @@ button {
 .settings-preview p {
   margin: 0;
   line-height: 1.5;
-  font-family: var(--font-reader);
   word-break: break-word;
   font-size: 0.92em;
 }
@@ -534,7 +534,8 @@ button {
 
 .field__range,
 .field__input,
-.field__color {
+.field__color,
+.field__select {
   width: 100%;
   height: 32px;
   padding: 0 10px;

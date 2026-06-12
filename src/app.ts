@@ -29,11 +29,27 @@ const SETTINGS_KEY = 'hidden-page.settings';
 const PROGRESS_KEY = 'hidden-page.progress';
 const LAST_DOCUMENT_KEY = 'hidden-page.last-document-path';
 
+const FONT_FAMILY_MAP: Record<string, string> = {
+  serif: "'Source Han Serif SC', 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', serif",
+  sans: "'Segoe UI Variable Display', 'PingFang SC', 'Microsoft YaHei', sans-serif",
+  system: "system-ui, -apple-system, sans-serif",
+};
+
+const FONT_WEIGHT_LABELS: Record<number, string> = {
+  300: '细',
+  400: '标准',
+  500: '中',
+  600: '半粗',
+  700: '粗',
+};
+
 const defaultReaderSettings: ReaderSettings = {
   fontSize: 20,
   lineHeight: 1.85,
   fontColor: '#132238',
   backgroundColor: '#fff8ec',
+  fontFamily: 'serif',
+  fontWeight: 400,
 };
 
 type StoredReaderSettings = Partial<ReaderSettings> & {
@@ -93,7 +109,10 @@ const settingsElements =
         shortcutSummary: queryRequired<HTMLElement>('#shortcutSummary'),
         statusLine: queryRequired<HTMLElement>('#settingsStatus'),
         importButton: queryRequired<HTMLButtonElement>('#importNovelButton'),
+        fontFamily: queryRequired<HTMLSelectElement>('#fontFamilySelect'),
         fontSize: queryRequired<HTMLInputElement>('[data-setting="fontSize"]'),
+        fontWeight: queryRequired<HTMLInputElement>('[data-setting="fontWeight"]'),
+        fontWeightValue: queryRequired<HTMLElement>('#fontWeightValue'),
         lineHeight: queryRequired<HTMLInputElement>('[data-setting="lineHeight"]'),
         fontColor: queryRequired<HTMLInputElement>('[data-setting="fontColor"]'),
         backgroundColor: queryRequired<HTMLInputElement>('[data-setting="backgroundColor"]'),
@@ -130,13 +149,20 @@ function applyVisualSettings(): void {
 
   if (state.mode !== 'reader') {
     if (settingsElements) {
+      settingsElements.fontFamily.value = state.settings.fontFamily;
       settingsElements.fontSize.value = String(state.settings.fontSize);
+      settingsElements.fontWeight.value = String(state.settings.fontWeight);
       settingsElements.lineHeight.value = String(state.settings.lineHeight);
+      const fontFamily = FONT_FAMILY_MAP[state.settings.fontFamily] ?? FONT_FAMILY_MAP.serif;
+      settingsElements.fontPreview.style.fontFamily = fontFamily;
       settingsElements.fontPreview.style.fontSize = `${state.settings.fontSize}px`;
+      settingsElements.fontPreview.style.fontWeight = String(state.settings.fontWeight);
       settingsElements.fontPreview.style.lineHeight = String(state.settings.lineHeight);
       settingsElements.fontPreview.style.color = state.settings.fontColor;
       settingsElements.fontPreview.style.backgroundColor = state.settings.backgroundColor;
       settingsElements.fontPreview.querySelectorAll<HTMLParagraphElement>('.settings-preview__content p').forEach((paragraph) => {
+        paragraph.style.fontFamily = fontFamily;
+        paragraph.style.fontWeight = String(state.settings.fontWeight);
         paragraph.style.lineHeight = String(state.settings.lineHeight);
       });
       settingsElements.fontColor.value = state.settings.fontColor;
@@ -144,6 +170,7 @@ function applyVisualSettings(): void {
       settingsElements.fontColorValue.textContent = state.settings.fontColor.toUpperCase();
       settingsElements.backgroundColorValue.textContent = state.settings.backgroundColor.toUpperCase();
       settingsElements.fontSizeValue.textContent = `${state.settings.fontSize}px`;
+      settingsElements.fontWeightValue.textContent = FONT_WEIGHT_LABELS[state.settings.fontWeight] ?? String(state.settings.fontWeight);
       settingsElements.lineHeightValue.textContent = state.settings.lineHeight.toFixed(2);
     }
     return;
@@ -153,7 +180,10 @@ function applyVisualSettings(): void {
     return;
   }
 
+  const readerFontFamily = FONT_FAMILY_MAP[state.settings.fontFamily] ?? FONT_FAMILY_MAP.serif;
+  readerElements.content.style.fontFamily = readerFontFamily;
   readerElements.content.style.fontSize = `${state.settings.fontSize}px`;
+  readerElements.content.style.fontWeight = String(state.settings.fontWeight);
   readerElements.content.style.lineHeight = String(state.settings.lineHeight);
   readerElements.content.style.color = state.settings.fontColor;
 }
@@ -209,11 +239,21 @@ function normalizeReaderSettings(raw: StoredReaderSettings | null | undefined): 
   const backgroundColorFallback =
     raw?.theme === 'dark' ? '#121a2f' : (legacyBackgroundToColor(raw?.background) ?? defaultReaderSettings.backgroundColor);
 
+  const fontFamily = typeof raw?.fontFamily === 'string' && raw.fontFamily in FONT_FAMILY_MAP
+    ? raw.fontFamily
+    : defaultReaderSettings.fontFamily;
+  const fontWeight =
+    typeof raw?.fontWeight === 'number' && Number.isFinite(raw.fontWeight) && raw.fontWeight >= 300 && raw.fontWeight <= 700
+      ? Math.round(raw.fontWeight / 100) * 100
+      : defaultReaderSettings.fontWeight;
+
   return {
     fontSize,
     lineHeight,
     fontColor: isValidCssColor(raw?.fontColor ?? '') ? raw!.fontColor!.trim() : fontColorFallback,
     backgroundColor: isValidCssColor(raw?.backgroundColor ?? '') ? raw!.backgroundColor!.trim() : backgroundColorFallback,
+    fontFamily,
+    fontWeight,
   };
 }
 
@@ -592,7 +632,9 @@ function bindReaderEvents(): void {
       normalized.fontSize !== state.settings.fontSize ||
       normalized.lineHeight !== state.settings.lineHeight ||
       normalized.fontColor !== state.settings.fontColor ||
-      normalized.backgroundColor !== state.settings.backgroundColor;
+      normalized.backgroundColor !== state.settings.backgroundColor ||
+      normalized.fontFamily !== state.settings.fontFamily ||
+      normalized.fontWeight !== state.settings.fontWeight;
 
     if (!hasChanged) {
       return;
@@ -695,8 +737,18 @@ function bindSettingsEvents(): void {
     return;
   }
 
+  settingsElements.fontFamily.addEventListener('change', () => {
+    state.settings.fontFamily = settingsElements.fontFamily.value;
+    applyVisualSettings();
+  });
+
   settingsElements.fontSize.addEventListener('input', () => {
     state.settings.fontSize = Number(settingsElements.fontSize.value);
+    applyVisualSettings();
+  });
+
+  settingsElements.fontWeight.addEventListener('input', () => {
+    state.settings.fontWeight = Number(settingsElements.fontWeight.value);
     applyVisualSettings();
   });
 
@@ -841,10 +893,13 @@ async function bootstrap(): Promise<void> {
   });
 
   if (settingsElements) {
+    settingsElements.fontFamily.value = state.settings.fontFamily;
     settingsElements.fontSize.value = String(state.settings.fontSize);
+    settingsElements.fontWeight.value = String(state.settings.fontWeight);
     settingsElements.lineHeight.value = String(state.settings.lineHeight);
     renderSettingsColorValues();
     settingsElements.fontSizeValue.textContent = `${state.settings.fontSize}px`;
+    settingsElements.fontWeightValue.textContent = FONT_WEIGHT_LABELS[state.settings.fontWeight] ?? String(state.settings.fontWeight);
     settingsElements.lineHeightValue.textContent = state.settings.lineHeight.toFixed(2);
     settingsElements.statusLine.textContent = '设置已加载。';
     settingsElements.importButton.addEventListener('click', async () => {
