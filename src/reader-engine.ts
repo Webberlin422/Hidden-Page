@@ -1,3 +1,8 @@
+export interface SearchMatch {
+  offset: number;
+  length: number;
+}
+
 export interface EngineDocumentHeader {
   path: string;
   name: string;
@@ -46,6 +51,8 @@ export class ReaderEngine {
   private charOffset = 0;
   private pageIndex = 0;
   private totalPages = 0;
+  private searchHighlights: SearchMatch[] = [];
+  private activeHighlightIndex = -1;
 
   constructor(container: HTMLElement, metrics: ViewMetrics) {
     this.container = container;
@@ -87,6 +94,22 @@ export class ReaderEngine {
     this.charOffset = this.pageIndex * this.charsPerPage;
     await this.renderCurrentPage();
     return this.getPageResult();
+  }
+
+  async goToPage(pageNumber: number): Promise<PageResult> {
+    const clamped = Math.max(1, Math.min(pageNumber, this.totalPages));
+    const offset = (clamped - 1) * this.charsPerPage;
+    return this.goToCharOffset(offset);
+  }
+
+  setSearchHighlights(matches: SearchMatch[], activeIndex: number): void {
+    this.searchHighlights = matches;
+    this.activeHighlightIndex = activeIndex;
+  }
+
+  clearSearchHighlights(): void {
+    this.searchHighlights = [];
+    this.activeHighlightIndex = -1;
   }
 
   getPageResult(): PageResult {
@@ -133,6 +156,42 @@ export class ReaderEngine {
       }
     }
 
-    this.container.innerHTML = escapeHtml(segment ?? '');
+    const safeText = segment ?? '';
+    if (this.searchHighlights.length === 0 || safeText.length === 0) {
+      this.container.innerHTML = escapeHtml(safeText);
+      return;
+    }
+
+    // Build HTML with <mark> tags for matches visible on this page
+    const pageStart = this.charOffset;
+    const pageEnd = pageStart + safeText.length;
+    const activeOffset = this.activeHighlightIndex >= 0
+      ? this.searchHighlights[this.activeHighlightIndex]?.offset ?? -1
+      : -1;
+
+    const visibleMatches = this.searchHighlights
+      .filter((m) => m.offset >= pageStart && m.offset < pageEnd)
+      .sort((a, b) => a.offset - b.offset);
+
+    if (visibleMatches.length === 0) {
+      this.container.innerHTML = escapeHtml(safeText);
+      return;
+    }
+
+    let html = '';
+    let lastEnd = 0;
+    for (const match of visibleMatches) {
+      const localStart = match.offset - pageStart;
+      const localEnd = localStart + match.length;
+      const isActive = match.offset === activeOffset;
+
+      html += escapeHtml(safeText.slice(lastEnd, localStart));
+      const cls = isActive ? ' class="search-active"' : '';
+      html += `<mark${cls}>${escapeHtml(safeText.slice(localStart, localEnd))}</mark>`;
+      lastEnd = localEnd;
+    }
+    html += escapeHtml(safeText.slice(lastEnd));
+
+    this.container.innerHTML = html;
   }
 }

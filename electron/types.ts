@@ -4,5 +4,6 @@ export type {
   OpenTextFileResult,
   DocumentHeader,
   DocumentLoadedHandler,
+  SearchMatch,
   WindowBoundsResult,
 } from '../src/types/shared';

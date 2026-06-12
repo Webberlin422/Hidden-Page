@@ -74,6 +74,26 @@ class DocumentManager {
   closeDocument(filePath: string): void {
     this.cache.delete(filePath);
   }
+
+  findAll(filePath: string, query: string): Array<{ offset: number; length: number }> {
+    const doc = this.cache.get(filePath);
+    if (!doc) return [];
+    doc.lastAccessed = Date.now();
+
+    if (!query) return [];
+
+    const lowerText = doc.text.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+    const matches: Array<{ offset: number; length: number }> = [];
+    let pos = 0;
+
+    while ((pos = lowerText.indexOf(lowerQuery, pos)) !== -1) {
+      matches.push({ offset: pos, length: query.length });
+      pos += query.length;
+    }
+
+    return matches;
+  }
 }
 
 export const documentManager = new DocumentManager();

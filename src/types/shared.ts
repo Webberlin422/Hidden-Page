@@ -34,3 +34,8 @@ export interface WindowBoundsResult {
   width: number;
   height: number;
 }
+
+export interface SearchMatch {
+  offset: number;
+  length: number;
+}

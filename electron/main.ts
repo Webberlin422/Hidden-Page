@@ -164,6 +164,13 @@ function turnPageInReader(direction: 'previous' | 'next'): void {
   }
 }
 
+function showReaderAndSend(channel: string): void {
+  showReaderWindow();
+  if (state.readerWindow && !state.readerWindow.isDestroyed()) {
+    state.readerWindow.webContents.send(channel);
+  }
+}
+
 function getAssetPath(fileName: string): string {
   const candidates = [path.join(process.cwd(), 'assets', fileName), path.join(app.getAppPath(), 'assets', fileName)];
 
@@ -485,6 +492,8 @@ function createTray(): void {
         },
       },
       { label: '阅读模式', click: showReaderWindow },
+      { label: '跳转到...', click: () => showReaderAndSend('reader:show-jump-to-page') },
+      { label: '搜索...', click: () => showReaderAndSend('reader:show-search') },
       { label: '设置', click: showSettingsWindow },
       { type: 'separator' },
       {
@@ -545,6 +554,10 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('reader:close-document', async (_event, filePath: string) => {
     documentManager.closeDocument(filePath);
+  });
+
+  ipcMain.handle('reader:find-in-document', async (_event, params: { path: string; query: string }) => {
+    return documentManager.findAll(params.path, params.query);
   });
 
   ipcMain.handle('settings:get-shortcuts', async () => state.shortcutConfig);

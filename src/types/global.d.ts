@@ -2,6 +2,7 @@ import type {
   DocumentHeader,
   DocumentLoadedHandler,
   ReaderSettings,
+  SearchMatch,
   ShortcutConfig,
   WindowBoundsResult,
 } from './shared';
@@ -34,6 +35,9 @@ declare global {
       hideWindow: () => Promise<void>;
       showWindow: () => Promise<void>;
       toggleWindow: () => Promise<void>;
+      findInDocument: (path: string, query: string) => Promise<SearchMatch[]>;
+      onShowJumpToPage: (handler: () => void) => void;
+      onShowSearch: (handler: () => void) => void;
     };
   }
 }

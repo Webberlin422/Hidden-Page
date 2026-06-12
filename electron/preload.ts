@@ -6,6 +6,7 @@ import type {
   WindowBoundsResult,
   ReaderSettings,
   DocumentLoadedHandler,
+  SearchMatch,
 } from './types';
 
 export type {
@@ -14,6 +15,7 @@ export type {
   WindowBoundsResult,
   ReaderSettings,
   DocumentLoadedHandler,
+  SearchMatch,
 };
 
 contextBridge.exposeInMainWorld('hiddenPage', {
@@ -54,4 +56,12 @@ contextBridge.exposeInMainWorld('hiddenPage', {
   hideWindow: (): Promise<void> => ipcRenderer.invoke('reader:hide-window'),
   showWindow: (): Promise<void> => ipcRenderer.invoke('reader:show-window'),
   toggleWindow: (): Promise<void> => ipcRenderer.invoke('reader:toggle-window'),
+  findInDocument: (path: string, query: string): Promise<SearchMatch[]> =>
+    ipcRenderer.invoke('reader:find-in-document', { path, query }),
+  onShowJumpToPage: (handler: () => void): void => {
+    ipcRenderer.on('reader:show-jump-to-page', () => handler());
+  },
+  onShowSearch: (handler: () => void): void => {
+    ipcRenderer.on('reader:show-search', () => handler());
+  },
 });

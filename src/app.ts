@@ -8,7 +8,7 @@ import {
   serializeShortcutEvent,
   type ShortcutConfig,
 } from './utils/shortcut';
-import type { ReaderSettings, WindowBoundsResult } from './types/shared';
+import type { ReaderSettings, WindowBoundsResult, SearchMatch } from './types/shared';
 import { bootstrapPicker, type PickerState, type PickerElements } from './picker';
 import { ReaderEngine, escapeHtml, type EngineDocumentHeader } from './reader-engine';
 
@@ -100,6 +100,27 @@ const readerElements =
       }
     : null;
 
+const searchElements =
+  state.mode === 'reader'
+    ? {
+        bar: queryRequired<HTMLDivElement>('#searchBar'),
+        input: queryRequired<HTMLInputElement>('#searchInput'),
+        count: queryRequired<HTMLElement>('#searchMatchCount'),
+        prevBtn: queryRequired<HTMLButtonElement>('#searchPrevBtn'),
+        nextBtn: queryRequired<HTMLButtonElement>('#searchNextBtn'),
+        closeBtn: queryRequired<HTMLButtonElement>('#searchCloseBtn'),
+      }
+    : null;
+
+const jumpElements =
+  state.mode === 'reader'
+    ? {
+        overlay: queryRequired<HTMLDivElement>('#jumpOverlay'),
+        input: queryRequired<HTMLInputElement>('#jumpInput'),
+        totalPages: queryRequired<HTMLElement>('#jumpTotalPages'),
+      }
+    : null;
+
 const settingsElements =
   state.mode === 'settings'
     ? {
@@ -143,6 +164,15 @@ let progressSaveTimer: number | null = null;
 let readerEngine: ReaderEngine | null = null;
 let activeShortcutField: ShortcutField | null = null;
 let globalShortcutPaused = false;
+
+// Search state
+let searchVisible = false;
+let searchQuery = '';
+let searchResults: SearchMatch[] = [];
+let searchResultIndex = -1;
+
+// Jump-to-page state
+let jumpVisible = false;
 
 function applyVisualSettings(): void {
   document.documentElement.style.setProperty('--reader-font-color', state.settings.fontColor);
@@ -435,6 +465,12 @@ async function renderReaderDocument(document: ReaderDocument | null): Promise<vo
 
   state.document = document;
 
+  // Clear search state when loading a new document
+  if (searchVisible) hideSearch();
+  searchQuery = '';
+  searchResults = [];
+  searchResultIndex = -1;
+
   if (!document) {
     localStorage.removeItem(LAST_DOCUMENT_KEY);
     readerElements.content.className = 'reader-card__content reader-card__empty';
@@ -500,6 +536,125 @@ async function openDocument(): Promise<void> {
 
   await window.hiddenPage.loadDocument(result);
   setSettingsStatus(`已导入：${result.name}`);
+}
+
+// ---- Search ----
+
+function showSearch(): void {
+  if (!searchElements || !readerEngine) return;
+  searchVisible = true;
+  searchElements.bar.hidden = false;
+  searchElements.input.value = searchQuery;
+  searchElements.input.focus();
+  searchElements.input.select();
+}
+
+function hideSearch(): void {
+  if (!searchElements) return;
+  searchVisible = false;
+  searchElements.bar.hidden = true;
+  searchQuery = '';
+  searchResults = [];
+  searchResultIndex = -1;
+  if (readerEngine) {
+    readerEngine.clearSearchHighlights();
+    void readerEngine.goToCharOffset(readerEngine.getPageResult().charOffset);
+  }
+  updateSearchUI();
+}
+
+async function executeSearch(query: string): Promise<void> {
+  if (!readerEngine || !state.document) return;
+  if (!query.trim()) {
+    searchResults = [];
+    searchResultIndex = -1;
+    if (readerEngine) readerEngine.clearSearchHighlights();
+    updateSearchUI();
+    return;
+  }
+
+  searchQuery = query;
+  searchResults = await window.hiddenPage.findInDocument(state.document.path, query);
+  searchResultIndex = searchResults.length > 0 ? 0 : -1;
+
+  if (searchResults.length > 0) {
+    readerEngine.setSearchHighlights(searchResults, searchResultIndex);
+    await readerEngine.goToCharOffset(searchResults[0].offset);
+  } else {
+    if (readerEngine) readerEngine.clearSearchHighlights();
+  }
+
+  updateSearchUI();
+  refreshProgress();
+}
+
+function navigateSearch(direction: 'prev' | 'next'): void {
+  if (searchResults.length === 0 || !readerEngine) return;
+
+  if (direction === 'next') {
+    searchResultIndex = (searchResultIndex + 1) % searchResults.length;
+  } else {
+    searchResultIndex = (searchResultIndex - 1 + searchResults.length) % searchResults.length;
+  }
+
+  readerEngine.setSearchHighlights(searchResults, searchResultIndex);
+  void readerEngine.goToCharOffset(searchResults[searchResultIndex].offset);
+  updateSearchUI();
+  refreshProgress();
+}
+
+function updateSearchUI(): void {
+  if (!searchElements) return;
+
+  if (searchResults.length === 0 || searchResultIndex < 0) {
+    searchElements.count.textContent = '0 / 0';
+    searchElements.prevBtn.disabled = true;
+    searchElements.nextBtn.disabled = true;
+  } else {
+    searchElements.count.textContent = `${searchResultIndex + 1} / ${searchResults.length}`;
+    searchElements.prevBtn.disabled = false;
+    searchElements.nextBtn.disabled = false;
+  }
+}
+
+// ---- Jump to Page ----
+
+function showJumpDialog(): void {
+  if (!jumpElements || !readerEngine) return;
+
+  const result = readerEngine.getPageResult();
+  jumpElements.totalPages.textContent = `共 ${result.totalPages} 页 (当前 ${result.pageIndex + 1})`;
+  jumpElements.input.value = String(result.pageIndex + 1);
+  jumpElements.overlay.hidden = false;
+  jumpVisible = true;
+  jumpElements.input.focus();
+  jumpElements.input.select();
+}
+
+function hideJumpDialog(): void {
+  if (!jumpElements) return;
+  jumpElements.overlay.hidden = true;
+  jumpVisible = false;
+}
+
+async function confirmJump(): Promise<void> {
+  if (!jumpElements || !readerEngine) return;
+
+  const raw = jumpElements.input.value.trim();
+  if (!raw) {
+    hideJumpDialog();
+    return;
+  }
+
+  const pageNum = parseInt(raw, 10);
+  if (isNaN(pageNum) || pageNum < 1) {
+    hideJumpDialog();
+    return;
+  }
+
+  await readerEngine.goToPage(pageNum);
+  hideJumpDialog();
+  refreshProgress();
 }
 
 function bindReaderEvents(): void {
@@ -662,8 +817,39 @@ function bindReaderEvents(): void {
     void turnPage(direction);
   });
 
+  window.hiddenPage.onShowJumpToPage(() => {
+    if (state.document && readerEngine) showJumpDialog();
+  });
+
+  window.hiddenPage.onShowSearch(() => {
+    if (state.document && readerEngine) {
+      if (searchVisible) hideSearch();
+      else showSearch();
+    }
+  });
+
   window.addEventListener('keydown', async (event) => {
     if (isTypingTarget(event.target)) {
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      if (jumpVisible) { hideJumpDialog(); return; }
+      if (searchVisible) { hideSearch(); return; }
+    }
+
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'g') {
+      event.preventDefault();
+      if (state.document && readerEngine) showJumpDialog();
+      return;
+    }
+
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+      event.preventDefault();
+      if (state.document && readerEngine) {
+        if (searchVisible) hideSearch();
+        else showSearch();
+      }
       return;
     }
 
@@ -717,6 +903,48 @@ function bindReaderEvents(): void {
       }
     });
     resizeObserver.observe(readerElements.viewport);
+  }
+
+  // ---- Search bar event bindings ----
+  if (searchElements) {
+    searchElements.input.addEventListener('keydown', async (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        if (event.shiftKey) {
+          navigateSearch('prev');
+        } else {
+          await executeSearch(searchElements.input.value);
+        }
+        return;
+      }
+      if (event.key === 'Escape') {
+        hideSearch();
+      }
+    });
+
+    searchElements.nextBtn.addEventListener('click', () => navigateSearch('next'));
+    searchElements.prevBtn.addEventListener('click', () => navigateSearch('prev'));
+    searchElements.closeBtn.addEventListener('click', hideSearch);
+  }
+
+  // ---- Jump-to-page overlay event bindings ----
+  if (jumpElements) {
+    jumpElements.input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        void confirmJump();
+        return;
+      }
+      if (event.key === 'Escape') {
+        hideJumpDialog();
+      }
+    });
+
+    jumpElements.overlay.addEventListener('pointerdown', (event) => {
+      if (event.target === jumpElements.overlay) {
+        hideJumpDialog();
+      }
+    });
   }
 }
 

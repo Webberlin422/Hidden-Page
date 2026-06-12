@@ -18,6 +18,32 @@
         <div class="reader-shell__resize-handle reader-shell__resize-handle--top-right" data-window-resize-handle="top-right"></div>
         <div class="reader-shell__resize-handle reader-shell__resize-handle--bottom-right" data-window-resize-handle="bottom-right"></div>
         <div class="reader-shell__resize-handle reader-shell__resize-handle--bottom-left" data-window-resize-handle="bottom-left"></div>
+        <div id="searchBar" class="search-bar" hidden>
+          <div class="search-bar__inner">
+            <input type="text" id="searchInput" class="search-bar__input"
+                   placeholder="搜索..." spellcheck="false">
+            <span id="searchMatchCount" class="search-bar__count">0 / 0</span>
+            <button id="searchPrevBtn"  class="search-bar__btn"
+                    title="上一个 (Shift+Enter)">&#9650;</button>
+            <button id="searchNextBtn"  class="search-bar__btn"
+                    title="下一个 (Enter)">&#9660;</button>
+            <button id="searchCloseBtn" class="search-bar__btn search-bar__btn--close"
+                    title="关闭 (Esc)">&#10005;</button>
+          </div>
+        </div>
+        <div id="jumpOverlay" class="jump-overlay" hidden>
+          <div class="jump-overlay__dialog">
+            <div class="jump-overlay__header">跳转到</div>
+            <div class="jump-overlay__body">
+              <input type="number" id="jumpInput" class="jump-overlay__input"
+                     min="1" placeholder="页码">
+              <span id="jumpTotalPages" class="jump-overlay__info">共 0 页</span>
+            </div>
+            <div class="jump-overlay__footer">
+              <span class="jump-overlay__hint">回车确认 · Esc 取消</span>
+            </div>
+          </div>
+        </div>
         <section class="reader-card">
           <div class="reader-card__body" id="readerViewport">
             <article class="reader-card__content reader-card__empty" id="readerContent">
