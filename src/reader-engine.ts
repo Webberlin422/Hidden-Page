@@ -35,6 +35,10 @@ export function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, (ch) => map[ch]);
 }
 
+export function normalizeLineEndings(text: string): string {
+  return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+}
+
 function estimateCharsPerPage(metrics: ViewMetrics): number {
   const avgCharWidth = metrics.fontSize * 0.9;
   const charsPerLine = Math.max(1, Math.floor(metrics.width / avgCharWidth));
@@ -156,7 +160,7 @@ export class ReaderEngine {
       }
     }
 
-    const safeText = segment ?? '';
+    const safeText = normalizeLineEndings(segment ?? '');
     if (this.searchHighlights.length === 0 || safeText.length === 0) {
       this.container.innerHTML = escapeHtml(safeText);
       return;
