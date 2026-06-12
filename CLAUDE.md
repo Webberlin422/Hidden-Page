@@ -58,14 +58,14 @@ The renderer is a single HTML page (`index.html` → `src/app.ts`). The `?mode=`
 | Mode       | Purpose                  | Key elements                                                                  |
 | ---------- | ------------------------ | ----------------------------------------------------------------------------- |
 | `reader`   | Frameless reading window | Custom drag/resize handles, scroll-based pagination, progress saving          |
-| `settings` | Full settings panel      | Font size/color, line height, shortcut recording, screen color picker trigger |
+| `settings` | Full settings panel      | Font family/weight/size, line height, font/background color, shortcut recording, screen color picker trigger |
 | `picker`   | Full-screen color picker | Screenshot backdrop, crosshair reticle, magnifier, pixel sampling via IPC     |
 
 ### Window management (main process)
 
 - **readerWindow** — frameless, skipTaskbar, hide-on-close (not quit). Created on startup with `autoShow=false`; toggled via global shortcut or tray.
 - **settingsWindow** — regular framed window, skipTaskbar.
-- **colorPickerWindow** — fullscreen, transparent, alwaysOnTop, no frame. Created on demand per pick operation.
+- **colorPickerWindow** — fullscreen, opaque (`#000000`), alwaysOnTop (screen-saver level), no frame. Created on demand per pick operation. Must remain hidden until screenshot is rendered.
 
 `toggleReaderWindow()` is the core UX: if settings is focused, do nothing; if reader is visible, hide it; otherwise show it.
 
@@ -80,12 +80,14 @@ The renderer gets its shortcut defaults from the main process via `window.hidden
 
 ### Color picker flow
 
-1. Settings page calls `window.hiddenPage.openScreenColorPicker(mode)`
-2. Main process creates a fullscreen transparent window over the target display
-3. Renderer calls `captureDisplayThumbnail(displayId)` → main uses `screenshot-desktop` + `pngjs` to capture screen
-4. As user moves cursor, renderer calls `samplePixelColor(x, y)` → main reads pixel from the cached PNG buffer
-5. On click: `completeScreenColorPick(hex)` resolves the promise; on Esc/right-click: resolves `null`
-6. Main process sends the color back to settings, which updates the form
+1. Settings page calls `window.hiddenPage.openScreenColorPicker()` → returns `Promise<string | null>`
+2. Main process creates a hidden fullscreen window (opaque `#000000`, `alwaysOnTop: 'screen-saver'`, `setContentProtection(true)`)
+3. Renderer boots, calls `captureScreen()` → main uses `desktopCapturer.getSources()` with `thumbnailSize` matching the display
+4. Screenshot data URL is drawn onto a full-size canvas with `willReadFrequently: true`
+5. Renderer calls `showScreenColorPickerWindow()` → window becomes visible with screenshot
+6. As user moves cursor, `mousemove` on canvas samples pixel via `getImageData()`, updates crosshair position and hex display
+7. On `pointerdown`: color is sampled, `setPointerCapture()` locks events to canvas, a transparent shield div (z-index:9) is inserted to absorb stray `click` events
+8. On `pointerup` (routed to canvas via pointer capture): calls `completeScreenColorPick(hex)`, main resolves promise, closes window after 300ms delay. Esc/right-click/cancel button: resolves `null`.
 
 ### Data persistence
 
@@ -103,9 +105,16 @@ The main process and renderer both normalize loaded configs — missing or inval
 
 - **No framework** — the renderer builds HTML via template literals and manipulates the DOM directly. There is no React/Vue/Svelte.
 - **ESM in renderer, CommonJS in main** — `vite-plugin-electron` compiles both; electron files output to `dist/main/` as CommonJS bundles.
-- **`screenshot-desktop` is a CJS require** — it must be `require()`'d, not imported (see `electron/main.ts` line 8).
+- **`desktopCapturer.getSources()` for screen capture** — used in main process for the color picker screenshot. Returns `NativeImage` thumbnails matched by `display_id`. No external dependencies needed.
 - **The reader window is frameless** — moving and resizing are handled by custom CSS regions + `setReaderWindowBounds` IPC calls.
 - **Reader text is rendered via `innerHTML`** — the `normalizeReaderText()` function escapes HTML entities to prevent XSS from novel file content.
+
+### Common pitfalls
+
+- **JS inline styles vs CSS specificity** — Settings are applied via JS inline styles (e.g. `element.style.fontFamily = ...`). But CSS rules like `.settings-preview p { font-family: ... }` have higher specificity than inherited inline styles on parent elements. When adding a new setting that affects child elements, check for conflicting CSS rules and set the style directly on the children if needed (see `applyVisualSettings()` for pattern).
+- **Picker z-index layers** — The picker uses z-index stacking: canvas=0, `::after` overlay=1, crosshair/labels=2, shield=9. When inserting new layers, trace which element will receive `pointerdown`/`pointerup`/`click` events. The shield (z=9) absorbs events above the canvas — if the canvas needs `pointerup`, use `setPointerCapture(event.pointerId)` on `pointerdown` so the event is routed to the canvas even after the shield is inserted.
+- **Picker window visibility** — The window must remain **hidden** until the screenshot is captured and rendered to canvas. Do NOT use `ready-to-show` to auto-show it; only `picker:show-window` IPC (called from renderer after `drawImage`) should make it visible. Otherwise `desktopCapturer` may capture the black picker window instead of the desktop.
+- **Shield timing** — The transparent shield is inserted on `pointerdown` to absorb the trailing `click` event (prevents click-through to the app below after window closes). It must be transparent (`background:transparent`), not opaque — an opaque black shield causes a visual black flash on click. The shield persists until window close; no need to remove it.
 
 ## Available Skills
 
