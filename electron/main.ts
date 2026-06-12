@@ -329,12 +329,12 @@ function createWindow(mode: 'reader' | 'settings', autoShow = true): BrowserWind
   const readerBounds = isReader ? loadReaderWindowBounds() : null;
 
   const window = new BrowserWindow({
-    width: isReader ? readerBounds!.width : 1080,
-    height: isReader ? readerBounds!.height : 860,
+    width: isReader ? readerBounds!.width : 600,
+    height: isReader ? readerBounds!.height : 520,
     x: isReader ? readerBounds!.x : undefined,
     y: isReader ? readerBounds!.y : undefined,
-    minWidth: isReader ? 56 : 900,
-    minHeight: isReader ? 38 : 760,
+    minWidth: isReader ? 56 : 460,
+    minHeight: isReader ? 38 : 400,
     show: false,
     title: isReader ? 'HiddenPage Reader' : 'HiddenPage Settings',
     icon,
