@@ -86,7 +86,7 @@ export async function bootstrapPicker(picker: PickerElements, state: PickerState
     }
   }
 
-  // On pointerdown: immediately cover the screen with an opaque shield so
+  // On pointerdown: cover the screen with a transparent shield so
   // the subsequent click event is absorbed by our window, not the app below.
   // Sample color and resolve on pointerup.
   let pendingHex: string | null = null;
@@ -95,7 +95,7 @@ export async function bootstrapPicker(picker: PickerElements, state: PickerState
   function ensureShield(): HTMLDivElement {
     if (!shield) {
       shield = document.createElement('div');
-      shield.style.cssText = 'position:fixed;inset:0;z-index:9;background:#000;cursor:default';
+      shield.style.cssText = 'position:fixed;inset:0;z-index:9;background:transparent;cursor:default';
       shield.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); });
       shield.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); });
       shield.addEventListener('pointerup', (e) => { e.preventDefault(); e.stopPropagation(); });
@@ -115,6 +115,7 @@ export async function bootstrapPicker(picker: PickerElements, state: PickerState
     }
 
     pendingHex = sampleColor(event.clientX, event.clientY);
+    picker.canvas.setPointerCapture(event.pointerId);
     ensureShield();
   });
 
@@ -125,6 +126,7 @@ export async function bootstrapPicker(picker: PickerElements, state: PickerState
     if (pendingHex) {
       const hex = pendingHex;
       pendingHex = null;
+      picker.canvas.releasePointerCapture(event.pointerId);
       await window.hiddenPage.completeScreenColorPick(hex);
     }
   });

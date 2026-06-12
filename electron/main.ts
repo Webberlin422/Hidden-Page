@@ -279,10 +279,6 @@ function createColorPickerWindow(): BrowserWindow {
   window.setContentProtection(true);
   window.setIgnoreMouseEvents(false);
   window.removeMenu();
-  window.once('ready-to-show', () => {
-    window.show();
-    window.focus();
-  });
   window.loadURL(getRendererUrl('picker')).catch((error) => {
     console.error('Failed to load color picker window:', error);
   });
