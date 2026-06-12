@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 import { defaultShortcutConfig, isLegacyShortcutConfig, registerGlobalShortcuts, type ShortcutConfig } from './shortcuts';
 import type { ReaderSettings } from './types';
 import { state } from './state';
+import { documentManager, type DocumentHeader } from './document-manager';
 
 function getShortcutConfigPath(): string {
   return path.join(app.getPath('userData'), 'shortcut-config.json');
@@ -121,7 +122,7 @@ function setReaderWindowBackgroundColor(color: string): void {
   }
 }
 
-async function loadTextDocumentFromDialog(targetWindow: BrowserWindow): Promise<{ path: string; name: string; content: string } | null> {
+async function loadTextDocumentFromDialog(targetWindow: BrowserWindow): Promise<DocumentHeader | null> {
   const result = await dialog.showOpenDialog(targetWindow, {
     title: '选择小说文件',
     properties: ['openFile'],
@@ -135,14 +136,7 @@ async function loadTextDocumentFromDialog(targetWindow: BrowserWindow): Promise<
     return null;
   }
 
-  const filePath = result.filePaths[0];
-  const content = await fs.readFile(filePath, 'utf8');
-
-  return {
-    path: filePath,
-    name: path.basename(filePath),
-    content,
-  };
+  return documentManager.openDocument(result.filePaths[0]);
 }
 
 function syncGlobalShortcutRegistration(): void {
@@ -519,7 +513,7 @@ function registerIpcHandlers(): void {
     return loadTextDocumentFromDialog(targetWindow);
   });
 
-  ipcMain.handle('reader:load-document', async (_event, document: { path: string; name: string; content: string }) => {
+  ipcMain.handle('reader:load-document', async (_event, document: DocumentHeader) => {
     if (!state.readerWindow) {
       showReaderWindow();
     }
@@ -529,19 +523,28 @@ function registerIpcHandlers(): void {
       return null;
     }
 
-    state.readerWindow.webContents.send('reader:document-loaded', document);
+    // Ensure document is cached in document manager (idempotent)
+    const header = await documentManager.openDocument(document.path);
+
+    state.readerWindow.webContents.send('reader:document-loaded', header);
     showReaderWindow();
-    return document;
+    return header;
   });
 
   ipcMain.handle('reader:open-text-file-path', async (_event, filePath: string) => {
-    const content = await fs.readFile(filePath, 'utf8');
+    return documentManager.openDocument(filePath);
+  });
 
-    return {
-      path: filePath,
-      name: path.basename(filePath),
-      content,
-    };
+  ipcMain.handle('reader:open-document', async (_event, filePath: string) => {
+    return documentManager.openDocument(filePath);
+  });
+
+  ipcMain.handle('reader:get-segment', async (_event, params: { path: string; startChar: number; endChar: number }) => {
+    return documentManager.getSegment(params.path, params.startChar, params.endChar);
+  });
+
+  ipcMain.handle('reader:close-document', async (_event, filePath: string) => {
+    documentManager.closeDocument(filePath);
   });
 
   ipcMain.handle('settings:get-shortcuts', async () => state.shortcutConfig);

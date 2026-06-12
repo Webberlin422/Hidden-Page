@@ -10,11 +10,13 @@ import {
 } from './utils/shortcut';
 import type { ReaderSettings, WindowBoundsResult } from './types/shared';
 import { bootstrapPicker, type PickerState, type PickerElements } from './picker';
+import { ReaderEngine, escapeHtml, type EngineDocumentHeader } from './reader-engine';
 
 interface ReaderDocument {
   path: string;
   name: string;
-  content: string;
+  totalChars: number;
+  encoding?: string;
 }
 
 interface ProgressState {
@@ -138,6 +140,7 @@ const pickerElements =
     : null;
 
 let progressSaveTimer: number | null = null;
+let readerEngine: ReaderEngine | null = null;
 let activeShortcutField: ShortcutField | null = null;
 let globalShortcutPaused = false;
 
@@ -402,10 +405,6 @@ async function cancelShortcutRecording(message = '已取消录制。'): Promise<
   await setGlobalShortcutPaused(false);
 }
 
-function normalizeReaderText(value: string): string {
-  return value.split('&').join('&amp;').split('<').join('&lt;').split('>').join('&gt;').split('"').join('&quot;').split("'").join('&#39;');
-}
-
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
     return false;
@@ -414,19 +413,22 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return target.matches('input, textarea, select, [contenteditable="true"]');
 }
 
-function turnPage(direction: 'next' | 'previous'): void {
-  if (!readerElements) {
-    return;
-  }
-
-  const viewport = readerElements.viewport;
-  const maxScroll = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
-  const delta = Math.max(240, Math.round(viewport.clientHeight * 0.88));
-  const nextTop = direction === 'next' ? viewport.scrollTop + delta : viewport.scrollTop - delta;
-  viewport.scrollTop = Math.min(maxScroll, Math.max(0, nextTop));
+function getViewMetrics(): { fontSize: number; lineHeight: number; width: number; height: number } {
+  return {
+    fontSize: state.settings.fontSize,
+    lineHeight: state.settings.lineHeight,
+    width: readerElements?.viewport.clientWidth ?? 800,
+    height: readerElements?.viewport.clientHeight ?? 600,
+  };
 }
 
-function renderReaderDocument(document: ReaderDocument | null): void {
+async function turnPage(direction: 'next' | 'previous'): Promise<void> {
+  if (!readerEngine || !state.document) return;
+  await readerEngine.turnPage(direction);
+  refreshProgress();
+}
+
+async function renderReaderDocument(document: ReaderDocument | null): Promise<void> {
   if (!readerElements) {
     return;
   }
@@ -440,38 +442,38 @@ function renderReaderDocument(document: ReaderDocument | null): void {
       <div class="reader-empty__title">等待一本书。</div>
       <div>从托盘菜单打开小说，或把 txt 拖到这里。</div>
     `;
-    readerElements.viewport.scrollTop = 0;
     return;
   }
 
   localStorage.setItem(LAST_DOCUMENT_KEY, document.path);
 
-  readerElements.content.className = 'reader-card__content';
-  readerElements.content.innerHTML = normalizeReaderText(document.content);
+  // Initialize or reuse the reader engine
+  if (!readerEngine) {
+    readerEngine = new ReaderEngine(readerElements.content, getViewMetrics());
+  }
 
-  requestAnimationFrame(() => {
-    const savedPosition = state.progress[document.path] ?? 0;
-    readerElements.viewport.scrollTop = savedPosition;
-    refreshProgress();
-  });
+  readerElements.content.className = 'reader-card__content';
+  await readerEngine.loadDocument(document as EngineDocumentHeader);
+
+  // Restore saved progress
+  const savedOffset = state.progress[document.path];
+  if (typeof savedOffset === 'number' && savedOffset > 0 && savedOffset < document.totalChars) {
+    await readerEngine.goToCharOffset(savedOffset);
+  }
+
+  refreshProgress();
 }
 
 function refreshProgress(): void {
-  if (!readerElements || !state.document) {
-    return;
-  }
+  if (!readerEngine || !state.document) return;
 
-  const { scrollTop, scrollHeight, clientHeight } = readerElements.viewport;
-  const maxScroll = Math.max(1, scrollHeight - clientHeight);
-
-  // Calculate and display page number and percentage
-  const totalPages = Math.max(1, Math.ceil(scrollHeight / clientHeight));
-  // Map scroll progress proportionally to page range (avoids skipped pages)
-  const currentPage = Math.min(totalPages, Math.max(1, Math.round((scrollTop / maxScroll) * (totalPages - 1)) + 1));
-  const percent = Math.min(100, Math.round(((scrollTop + clientHeight) / scrollHeight) * 100));
+  const result = readerEngine.getPageResult();
+  const percent = result.totalChars > 0
+    ? Math.min(100, Math.round(((result.charOffset + result.totalChars / result.totalPages) / result.totalChars) * 100))
+    : 0;
   const progressEl = document.querySelector<HTMLElement>('#readerProgress');
   if (progressEl) {
-    progressEl.textContent = `${currentPage}/${totalPages} · ${percent}%`;
+    progressEl.textContent = `${result.pageIndex + 1}/${result.totalPages} · ${percent}%`;
   }
 
   if (progressSaveTimer !== null) {
@@ -479,11 +481,8 @@ function refreshProgress(): void {
   }
 
   progressSaveTimer = window.setTimeout(() => {
-    if (!state.document) {
-      return;
-    }
-
-    state.progress[state.document.path] = readerElements.viewport.scrollTop;
+    if (!state.document || !readerEngine) return;
+    state.progress[state.document.path] = readerEngine.getPageResult().charOffset;
     saveJson(PROGRESS_KEY, state.progress);
   }, 120);
 }
@@ -654,15 +653,13 @@ function bindReaderEvents(): void {
     syncSettingsFromStorage();
   });
 
-  readerElements.viewport.addEventListener('scroll', refreshProgress, { passive: true });
-
   window.hiddenPage.onDocumentLoaded((document) => {
-    renderReaderDocument(document);
+    void renderReaderDocument(document);
   });
 
   // Global shortcuts from main process — bypass Chromium Alt-key interception
   window.hiddenPage.onGlobalTurnPage((direction) => {
-    turnPage(direction);
+    void turnPage(direction);
   });
 
   window.addEventListener('keydown', async (event) => {
@@ -672,13 +669,13 @@ function bindReaderEvents(): void {
 
     if (matchesShortcut(event, state.shortcuts.nextPage)) {
       event.preventDefault();
-      turnPage('next');
+      await turnPage('next');
       return;
     }
 
     if (matchesShortcut(event, state.shortcuts.previousPage)) {
       event.preventDefault();
-      turnPage('previous');
+      await turnPage('previous');
       return;
     }
 
@@ -705,11 +702,22 @@ function bindReaderEvents(): void {
   );
 
   window.addEventListener('beforeunload', () => {
-    if (state.document && readerElements) {
-      state.progress[state.document.path] = readerElements.viewport.scrollTop;
+    if (state.document && readerEngine) {
+      state.progress[state.document.path] = readerEngine.getPageResult().charOffset;
       saveJson(PROGRESS_KEY, state.progress);
     }
   });
+
+  // Recalculate page capacity when viewport resizes
+  if (typeof ResizeObserver !== 'undefined') {
+    const resizeObserver = new ResizeObserver(() => {
+      if (readerEngine) {
+        readerEngine.recalculate(getViewMetrics());
+        refreshProgress();
+      }
+    });
+    resizeObserver.observe(readerElements.viewport);
+  }
 }
 
 async function saveShortcutConfigWithStatus(nextConfig: ShortcutConfig, statusText: string): Promise<void> {
@@ -862,6 +870,10 @@ async function bootstrap(): Promise<void> {
     window.hiddenPage.onReaderSettingsApplied((settings) => {
       state.settings = normalizeReaderSettings(settings);
       applyVisualSettings();
+      if (readerEngine) {
+        readerEngine.recalculate(getViewMetrics());
+        refreshProgress();
+      }
     });
 
     const lastDocumentPath = localStorage.getItem(LAST_DOCUMENT_KEY);
@@ -870,7 +882,7 @@ async function bootstrap(): Promise<void> {
         const document = await window.hiddenPage.openTextFileAtPath(lastDocumentPath);
         // Render locally instead of calling loadDocument() IPC,
         // which would trigger showReaderWindow() and pop up the window on startup
-        renderReaderDocument(document);
+        await renderReaderDocument(document);
         return;
       } catch (error) {
         console.error('Failed to restore cached novel:', error);
@@ -878,7 +890,7 @@ async function bootstrap(): Promise<void> {
       }
     }
 
-    renderReaderDocument(null);
+    await renderReaderDocument(null);
     return;
   }
 

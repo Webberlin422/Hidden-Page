@@ -1,6 +1,6 @@
 import type {
+  DocumentHeader,
   DocumentLoadedHandler,
-  OpenTextFileResult,
   ReaderSettings,
   ShortcutConfig,
   WindowBoundsResult,
@@ -9,9 +9,12 @@ import type {
 declare global {
   interface Window {
     hiddenPage: {
-      openTextFile: () => Promise<OpenTextFileResult | null>;
-      openTextFileAtPath: (filePath: string) => Promise<OpenTextFileResult>;
-      loadDocument: (document: OpenTextFileResult) => Promise<OpenTextFileResult | null>;
+      openTextFile: () => Promise<DocumentHeader | null>;
+      openTextFileAtPath: (filePath: string) => Promise<DocumentHeader>;
+      loadDocument: (document: DocumentHeader) => Promise<DocumentHeader | null>;
+      openDocument: (filePath: string) => Promise<DocumentHeader>;
+      getSegment: (filePath: string, startChar: number, endChar: number) => Promise<string | null>;
+      closeDocument: (filePath: string) => Promise<void>;
       openScreenColorPicker: () => Promise<string | null>;
       captureScreen: () => Promise<{ dataUrl: string; width: number; height: number }>;
       showScreenColorPickerWindow: () => Promise<void>;

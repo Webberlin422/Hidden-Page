@@ -57,7 +57,7 @@ The renderer is a single HTML page (`index.html` → `src/app.ts`). The `?mode=`
 
 | Mode       | Purpose                  | Key elements                                                                  |
 | ---------- | ------------------------ | ----------------------------------------------------------------------------- |
-| `reader`   | Frameless reading window | Custom drag/resize handles, scroll-based pagination, progress saving          |
+| `reader`   | Frameless reading window | Custom drag/resize handles, char-offset-based pagination via ReaderEngine, progress saving          |
 | `settings` | Full settings panel      | Font family/weight/size, line height, font/background color, shortcut recording, screen color picker trigger |
 | `picker`   | Full-screen color picker | Screenshot backdrop, crosshair reticle, magnifier, pixel sampling via IPC     |
 
@@ -107,7 +107,10 @@ The main process and renderer both normalize loaded configs — missing or inval
 - **ESM in renderer, CommonJS in main** — `vite-plugin-electron` compiles both; electron files output to `dist/main/` as CommonJS bundles.
 - **`desktopCapturer.getSources()` for screen capture** — used in main process for the color picker screenshot. Returns `NativeImage` thumbnails matched by `display_id`. No external dependencies needed.
 - **The reader window is frameless** — moving and resizing are handled by custom CSS regions + `setReaderWindowBounds` IPC calls.
-- **Reader text is rendered via `innerHTML`** — the `normalizeReaderText()` function escapes HTML entities to prevent XSS from novel file content.
+- **Reader text is rendered via `innerHTML`** — the `escapeHtml()` function (in `src/reader-engine.ts`) uses a single-pass regex to escape HTML entities and prevent XSS from novel file content.
+- **Encoding auto-detection** — `electron/encoding.ts` uses BOM detection + `jschardet` statistical analysis to detect file encoding, then `iconv-lite` for conversion. Supports UTF-8, GBK/GB2312, UTF-16, Latin-1, Big5, Shift-JIS, EUC-KR.
+- **Segmented rendering** — `electron/document-manager.ts` caches up to 3 decoded documents (LRU eviction). `src/reader-engine.ts` fetches only the current page's text segment (~5KB) from main process via `getSegment()` IPC, instead of rendering the entire file into one giant DOM node. This keeps memory low and page turns fast even for 20MB+ files.
+- **Progress stored as character offset** — `localStorage` saves `charOffset` (number) instead of `scrollTop`, so reading position survives font/viewport changes. Old `scrollTop` values are gracefully clamped to 0 on first load after upgrade.
 
 ### Common pitfalls
 

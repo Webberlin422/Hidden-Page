@@ -28,7 +28,7 @@ export default defineConfig({
           build: {
             outDir: 'dist/main',
             rollupOptions: {
-              external: ['electron', 'screenshot-desktop', 'pngjs'],
+              external: ['electron', 'screenshot-desktop', 'pngjs', 'jschardet', 'iconv-lite'],
             },
           },
         },

@@ -19,7 +19,14 @@ export interface OpenTextFileResult {
   content: string;
 }
 
-export type DocumentLoadedHandler = (document: OpenTextFileResult) => void;
+export interface DocumentHeader {
+  path: string;
+  name: string;
+  encoding: string;
+  totalChars: number;
+}
+
+export type DocumentLoadedHandler = (document: DocumentHeader) => void;
 
 export interface WindowBoundsResult {
   x: number;

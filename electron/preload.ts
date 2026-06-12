@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import { defaultShortcutConfig } from './shortcuts';
 import type {
   ShortcutConfig,
-  OpenTextFileResult,
+  DocumentHeader,
   WindowBoundsResult,
   ReaderSettings,
   DocumentLoadedHandler,
@@ -10,23 +10,27 @@ import type {
 
 export type {
   ShortcutConfig,
-  OpenTextFileResult,
+  DocumentHeader,
   WindowBoundsResult,
   ReaderSettings,
   DocumentLoadedHandler,
 };
 
 contextBridge.exposeInMainWorld('hiddenPage', {
-  openTextFile: (): Promise<OpenTextFileResult | null> => ipcRenderer.invoke('reader:open-text-file'),
-  openTextFileAtPath: (filePath: string): Promise<OpenTextFileResult> => ipcRenderer.invoke('reader:open-text-file-path', filePath),
-  loadDocument: (document: OpenTextFileResult): Promise<OpenTextFileResult | null> => ipcRenderer.invoke('reader:load-document', document),
+  openTextFile: (): Promise<DocumentHeader | null> => ipcRenderer.invoke('reader:open-text-file'),
+  openTextFileAtPath: (filePath: string): Promise<DocumentHeader> => ipcRenderer.invoke('reader:open-text-file-path', filePath),
+  loadDocument: (document: DocumentHeader): Promise<DocumentHeader | null> => ipcRenderer.invoke('reader:load-document', document),
+  openDocument: (filePath: string): Promise<DocumentHeader> => ipcRenderer.invoke('reader:open-document', filePath),
+  getSegment: (filePath: string, startChar: number, endChar: number): Promise<string | null> =>
+    ipcRenderer.invoke('reader:get-segment', { path: filePath, startChar, endChar }),
+  closeDocument: (filePath: string): Promise<void> => ipcRenderer.invoke('reader:close-document', filePath),
   openScreenColorPicker: (): Promise<string | null> => ipcRenderer.invoke('settings:open-screen-color-picker'),
   captureScreen: (): Promise<{ dataUrl: string; width: number; height: number }> =>
     ipcRenderer.invoke('picker:capture-screen'),
   showScreenColorPickerWindow: (): Promise<void> => ipcRenderer.invoke('picker:show-window'),
   completeScreenColorPick: (color: string | null): Promise<string | null> => ipcRenderer.invoke('picker:complete-color-pick', color),
   onDocumentLoaded: (handler: DocumentLoadedHandler): void => {
-    ipcRenderer.on('reader:document-loaded', (_event, document: OpenTextFileResult) => handler(document));
+    ipcRenderer.on('reader:document-loaded', (_event, document: DocumentHeader) => handler(document));
   },
   onReaderSettingsApplied: (handler: (settings: ReaderSettings) => void): void => {
     ipcRenderer.on('reader:settings-applied', (_event, settings: ReaderSettings) => handler(settings));
