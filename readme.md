@@ -13,6 +13,15 @@
 
 <p align="center"><em>A lightweight, tray-dwelling local TXT novel reader for Windows. <br>Read discreetly — one keystroke hides everything.</em></p>
 
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/reader.png" alt="Reader window" width="45%" />
+  &nbsp;&nbsp;
+  <img src="screenshots/settings.png" alt="Settings window" width="45%" />
+</p>
+<p align="center"><em>Left: Reading window &nbsp;|&nbsp; Right: Settings panel</em></p>
+
 ---
 
 ## Features
@@ -45,6 +54,15 @@ Download `HiddenPage Setup <version>.exe` from [Releases](https://github.com/Web
 # 隐页 HiddenPage
 
 HiddenPage 是一个运行在 Windows 上的轻量本地小说阅读器，基于 Electron + TypeScript + Vite 构建。它常驻系统托盘，主打快捷隐藏、快速恢复和简洁阅读界面，适合在工作或学习场景中安静阅读 TXT 小说。
+
+## 截图
+
+<p align="center">
+  <img src="screenshots/reader.png" alt="阅读窗口" width="45%" />
+  &nbsp;&nbsp;
+  <img src="screenshots/settings.png" alt="设置面板" width="45%" />
+</p>
+<p align="center"><em>左：阅读窗口 &nbsp;|&nbsp; 右：设置面板</em></p>
 
 ## 功能特点
 
