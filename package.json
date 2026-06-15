@@ -1,13 +1,20 @@
 {
   "name": "hidden-page",
-  "version": "0.1.0",
-  "private": true,
+  "version": "1.0.0",
+  "private": false,
   "description": "HiddenPage - a lightweight local novel reader for Windows.",
+  "author": {
+    "name": "Webber Lin",
+    "url": "https://github.com/Webberlin422"
+  },
+  "license": "SEE LICENSE IN LICENSE",
   "main": "dist/main/main.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "build:renderer": "vite build",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -23,6 +30,7 @@
     "@playwright/test": "^1.60.0",
     "@types/node": "^22.15.30",
     "electron": "^42.3.2",
+    "electron-builder": "^26.15.3",
     "eslint": "^10.4.1",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.8.3",
@@ -32,5 +40,48 @@
     "vite-plugin-electron": "^1.0.1",
     "vite-plugin-electron-renderer": "^1.0.0",
     "vitest": "^4.1.8"
+  },
+  "build": {
+    "appId": "com.hiddenpage.reader",
+    "productName": "HiddenPage",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "assets/**/*"
+    ],
+    "extraMetadata": {
+      "main": "dist/main/main.js"
+    },
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "HiddenPage",
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico",
+      "language": "2052"
+    },
+    "portable": {
+      "artifactName": "HiddenPage-${version}-portable.${ext}"
+    },
+    "fileAssociations": [
+      {
+        "ext": "txt",
+        "name": "Plain Text Document",
+        "description": "Text file that can be opened with HiddenPage",
+        "icon": "assets/icon.ico"
+      }
+    ]
   }
 }

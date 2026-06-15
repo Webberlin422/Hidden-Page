@@ -663,11 +663,45 @@ function registerIpcHandlers(): void {
   });
 }
 
+// Handle a file opened via file association (double-click in Explorer)
+// or command-line argument. Show the reader and load the document.
+async function handleOpenFile(filePath: string): Promise<void> {
+  if (!existsSync(filePath)) {
+    return;
+  }
+
+  const stat = await fs.stat(filePath);
+  if (!stat.isFile()) {
+    return;
+  }
+
+  const document = documentManager.openDocument(filePath);
+  if (!document) {
+    return;
+  }
+
+  if (!state.readerWindow) {
+    state.readerWindow = createWindow('reader', false);
+  }
+
+  state.readerWindow.webContents.send('reader:document-loaded', document);
+  showReaderWindow();
+}
+
 function bootstrapApp(): void {
   app.setAppUserModelId('com.hiddenpage.reader');
   app.commandLine.appendSwitch('disable-features', 'Windows11RoundedCorners');
 
-  app.on('second-instance', () => {
+  app.on('second-instance', (_event, argv) => {
+    // Handle file opened via file association (Windows passes the file path as the second argument)
+    const fileArg = argv.find((arg, index) => index > 0 && !arg.startsWith('-') && existsSync(arg));
+    if (fileArg) {
+      handleOpenFile(fileArg).catch((error) => {
+        console.error('Failed to open file from second instance:', error);
+      });
+      return;
+    }
+
     showReaderWindow();
   });
 
@@ -708,6 +742,15 @@ function bootstrapApp(): void {
       registerIpcHandlers();
       syncGlobalShortcutRegistration();
       Menu.setApplicationMenu(null);
+
+      // Handle file opened via file association on startup (Windows passes file path in process.argv)
+      const startupFile = process.argv.find((arg, index) => index > 0 && !arg.startsWith('-') && existsSync(arg));
+      if (startupFile) {
+        handleOpenFile(startupFile).catch((error) => {
+          console.error('Failed to open startup file:', error);
+        });
+      }
+
       console.log('HiddenPage bootstrapped successfully');
     } catch (error) {
       console.error('Failed to bootstrap app:', error);

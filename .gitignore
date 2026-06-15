@@ -4,3 +4,5 @@ dist/
 *.log
 .claude/
 test-results/
+release/
+novels/
