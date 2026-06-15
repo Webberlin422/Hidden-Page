@@ -344,6 +344,7 @@ function createWindow(mode: 'reader' | 'settings', autoShow = true): BrowserWind
     hasShadow: isReader ? false : undefined,
     roundedCorners: false,
     skipTaskbar: true,
+    alwaysOnTop: isReader,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
